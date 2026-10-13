@@ -1,0 +1,37 @@
+QMS OS - Known vulnerabilities and security issues (possibly not all that exist in the code)
+Kernel version: 1.0.0
+
+-----------
+
+CVE-QMS-001
+Vulnerability: Lack of user address space isolation
+Description: User applications are loaded and executed in the same
+address space as the kernel. Full user protection rings are not implemented.
+Status: Open
+
+CVE-QMS-002
+Vulnerability: No QEX application signature verification
+Description: No cryptographic integrity verification of the executable file.
+Status: Open
+
+CVE-QMS-003
+Vulnerability: Possible buffer overflow in shell
+Description: If the input string does not undergo proper length checking
+in all command processing branches, a stack buffer overflow is possible.
+Status: Closed
+
+CVE-QMS-004
+Vulnerability: ATA driver operates in PIO mode without interrupt timeouts
+Description: Timeout is implemented via an iteration counter. On different
+hardware or emulators, behavior may vary, which can lead to kernel hangs.
+Status: Open
+
+INFO-001
+Topic: No ASLR
+Description: Kernel and application load addresses are fixed. Exploitation
+of buffer overflow-type vulnerabilities is simplified due to predictable
+addresses, but ASLR will be added in the future.
+
+-----------
+
+This system works reliably only in QEMU and is not intended for real hardware.

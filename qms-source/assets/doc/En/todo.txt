@@ -1,0 +1,39 @@
+[TODO]
+
+Statuses:
+  [ ] - not started
+  [-] - in progress
+  [x] - completed
+
+
+Kernel
+[ ] Multitasking.
+[-] New font system.
+[ ] Initrd image loading.
+[-] Extended mounting system.
+[ ] ASLR for addresses.
+[-] User address space isolation.
+[ ] Full support for standard plain tar archives.
+[ ] Video drivers.
+[-] Architecture support: x86, x86_64.
+
+FileSystem
+[ ] Add ISO-9660 standard support.
+[ ] Add somewhat stripped-down Ext2.
+
+Drivers
+[ ] Video drivers.
+[ ] CD-ROM drivers.
+
+
+QMSH
+[-] Fully working command history.
+[-] Modular structure.
+[-] Basic user system.
+
+
+SBI SDK
+[ ] Application signing.
+[ ] Exploit protection.
+[ ] Application action monitoring.
+[ ] Add new format, library.
