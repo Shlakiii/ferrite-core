@@ -8,8 +8,8 @@ LDFLAGS = -m elf_i386 -T linker.ld
 KERNEL_DIR = kernel
 BUILD_DIR = isodir/boot/kernel
 
-C_SOURCES := $(wildcard $(KERNEL_DIR)/*.c) $(wildcard $(KERNEL_DIR)/func/*.c) $(wildcard $(KERNEL_DIR)/test/*.c) $(wildcard $(KERNEL_DIR)/bin/*.c)
-CPP_SOURCES := $(wildcard $(KERNEL_DIR)/*.cpp) $(wildcard $(KERNEL_DIR)/func/*.cpp) $(wildcard $(KERNEL_DIR)/test/*.cpp) $(wildcard $(KERNEL_DIR)/bin/*.cpp)
+C_SOURCES := $(wildcard $(KERNEL_DIR)/*.c) $(wildcard $(KERNEL_DIR)/SSOT/*.c) $(wildcard $(KERNEL_DIR)/func/*.c) $(wildcard $(KERNEL_DIR)/test/*.c) $(wildcard $(KERNEL_DIR)/bin/*.c)
+CPP_SOURCES := $(wildcard $(KERNEL_DIR)/*.cpp) $(wildcard $(KERNEL_DIR)/SSOT/*.cpp) $(wildcard $(KERNEL_DIR)/func/*.cpp) $(wildcard $(KERNEL_DIR)/test/*.cpp) $(wildcard $(KERNEL_DIR)/bin/*.cpp)
 
 C_OBJS := $(patsubst $(KERNEL_DIR)/%.c,$(BUILD_DIR)/%.o,$(C_SOURCES))
 CPP_OBJS := $(patsubst $(KERNEL_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(CPP_SOURCES))

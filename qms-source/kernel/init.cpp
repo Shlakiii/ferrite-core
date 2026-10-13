@@ -52,11 +52,17 @@ extern "C" void kernel_main() {
     init_writet();
     clear_screen();
     show_banner();
-    print_string_ln("[QMS-KERNEL][V0.8.8 build-92]");
+    print_string_ln("[FERRITE CORE (qms-k)]");
+    print_string_ln(" ");
+    print_string_ln("Versions:");
+    print_string_ln("QMS-K V0.8.8 build-92");
+    print_string_ln("FERR-C V0.0.2 build-05");
+    print_string_ln(" ");
 
     uint32_t magic = multiboot_magic;
     multiboot_info* mbi = (multiboot_info*)multiboot_addr;
 
+    print_string_ln("[QMS-K] Initializing");
     print_string("MBI Flags: ");
     print_int(mbi->flags);
     print_string_ln("");
@@ -94,7 +100,8 @@ extern "C" void kernel_main() {
         *ram_fs_manager = RamFileSystemManager((char*)fs_ptr, fs_size);
     }
     
-    print_string_ln("Run QMSH...");
+    print_string_ln(" ");
+    print_string_ln("Run FERR-C-Shell...");
     run_shell();
 
     while(1) { __asm__ __volatile__("hlt"); }

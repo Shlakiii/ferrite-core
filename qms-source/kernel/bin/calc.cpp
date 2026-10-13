@@ -14,7 +14,9 @@ void get_num(const char* buf, int& p, char* out) {
 }
 
 extern "C" void run_calc() {
+    print_string_ln(" ");
     print_string_ln("--- calculator ---");
+    print_string_ln("Enter 'q' to exit.");
     while (1) {
         print_string("\ncalc> ");
         char buf[256]; int i = 0;

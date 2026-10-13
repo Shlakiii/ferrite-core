@@ -9,5 +9,3 @@ void run_shell();
 #ifdef __cplusplus
 }
 #endif
-
-#endif
