@@ -56,7 +56,7 @@ extern "C" void kernel_main() {
     print_string_ln(" ");
     print_string_ln("Versions:");
     print_string_ln("QMS-K V0.8.8 build-92");
-    print_string_ln("FERR-C V0.0.2 build-05");
+    print_string_ln("FERR-C V0.1.0 build-34");
     print_string_ln(" ");
 
     uint32_t magic = multiboot_magic;
