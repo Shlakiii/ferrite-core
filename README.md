@@ -2,8 +2,6 @@
 
 **Ferrite-Core** — это экспериментальный форк ОС [QMS-Kernel](https://github.com/hecer-hub/qms-kernel), созданный для интеграции среды выполнения **LuaJIT** непосредственно на уровень 32-битного x86 ядра.
 
-> **Статус проекта:** На данный момент репозиторий представляет собой чистый форк QMS-Kernel. Активная разработка и интеграция рантайма Lua находятся на этапе планирования и подготовки архитектуры ядра.
-
 ## Вектор развития (Что планируется изменить):
 1. **Портирование LuaJIT:** Внедрение виртуальной машины Lua в ядро для исполнения скриптов с JIT-компиляцией.
 2. **Скриптовое окружение:** Дополнение стандартного шелла на Lua REPL.
@@ -12,32 +10,89 @@
 
 *Ниже приведено описание базовой архитектуры QMS-Kernel, которая используется как фундамент для Ferrite-Core:*
 
-## Текущие технические характеристики (База QMS):
-* **Разрядность:** 32-bit x86.
-* **Среда:** Полностью исполняется в ОЗУ (RAM-based).
-* **Размер бинария:** ~33.5 КБ.
-* **Потребление памяти:** ~516 КБ после загрузки.
-* **Требования:** Минимум 1 МБ (1049kb) RAM.
+# QMS OS V1.0.0
 
-## Реализованные компоненты базовой системы:
-* **Memory:** Постраничный менеджер памяти (bitmap-based).
-* **Interrupts:** Инициализация IDT и обработка базовых исключений.
-* **FS:** Примитивная файловая система в оперативной памяти (RamFS).
-* **Graphics/Input:** Драйвер VGA (текстовый режим 80x25, 1 видеоадаптер), собственный шрифт 8x8, ввод с PS/2 клавиатуры.
-* **Math:** Библиотека для работы с числами произвольной длины (BigInt).
+*A simple 32-bit hobby operating system built from scratch.*
 
-## Встроенный софт (оригинальный):
-* **QMSH:** Командная оболочка (`ls`, `cat`, `rm`, `mem`, `clear`).
-* **Editor:** Простейший текстовый редактор с сохранением в RamFS.
-* **Calc:** Калькулятор больших чисел.
+---
 
-## Сборка и запуск:
-Код компилируется на системе GNU/Linux с использованием `gcc`/`g++` и `ld` в режиме `-ffreestanding`.
+QMS OS is a lightweight educational operating system written in C and C++ for the i386 architecture. It features its own terminal, basic userspace, and multiple filesystem support.
 
-```bash
-make iso
-qemu-system-i386 -m 1M -cdrom qms.iso
+![Screenshot](assets/images/qms_os_run.png)
+
+> **Important**  
+> QMS OS works reliably **only in QEMU**. Real hardware support is not guaranteed and may lead to instability or data corruption.
+
+---
+
+## Features
+
+### Core
+- 32-bit protected mode
+- Framebuffer terminal with scrollback buffer
+- Basic memory management
+- IDT and interrupt handling
+- ATA PIO driver
+- QEX Aplications
+
+### Filesystems
+- QFS (native simple filesystem)
+- FAT16 (read/write)
+- FAT32 (read/write)
+
+### Drivers
+- PS/2 keyboard (standard and laptop layouts)
+- Serial port (COM)
+- LFB mode
+
+---
+
+## Building
+
 ```
+make
+```
+
+To build only the kernel:
+
+```
+make kernel
+```
+
+### Running in QEMU:
+
+```
+make run     # build and run (no disk)
+make rundisk # build and run
+```
+
+---
+
+## Project Structure
+
+```
+qms-src/
+├── kernel/          - Kernel source code
+├── assets/          - Documentation and images
+├── disk.img         - Bootable disk image
+└── Makefile         - Build make script
+ ...
+```
+
+---
+
+## Documentation
+
+Detailed documentation is available in the [`assets/doc/`](assets/doc/) directory:
+
+---
+
+## Disclaimer
+
+This is an **early experimental release** (Version 1.0.0).  
+The system is developed for learning and hobby purposes.
+
+---
 
 ## Лицензия и происхождение
 Проект **Ferrite-Core** основан на кодовой базе **QMS-Kernel** (автор: [Roit](https://github.com/hecer-hub)). 
