@@ -1,7 +1,5 @@
 #include "serial.h"
 
-#include <lib/strtools/string.h>
-
 #include <io/printg.h>
 #include <io/io.h>
 
@@ -47,6 +45,34 @@ void write_serial(char a) {
 
 void serial_print(const char* str) {
     while (*str) {
-        write_serial(*str++);
+        write_serial(*str++); // вывод симвала
     }
+}
+
+void serial_println(const char* str) {
+    while (*str) {
+        write_serial(*str++); // вывод симвала
+    }
+    write_serial('\r'); // возврат каретки
+    write_serial('\n'); // новая строка
+}
+
+void serial_return_cur(int steps) {
+    for (int i = 0; i < steps; i++) {
+        write_serial('\b'); // возврат каретки
+    }
+}
+
+void serial_push_cur(int steps) {
+    for (int i = 0; i < steps; i++) {
+        serial_print("\033[1C"); // движение курсора вправо на 1 позицию
+    }
+}
+
+void serial_full_return_cur(){
+    write_serial('\r'); // возврат каретки
+}
+void serial_new_line_manual(){
+    write_serial('\r'); // возврат каретки
+    write_serial('\n'); // новая строка
 }

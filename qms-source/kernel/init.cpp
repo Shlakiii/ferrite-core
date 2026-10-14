@@ -153,6 +153,15 @@ extern "C" void kernel_main() {
     keyboard_init();
 
     init_serial();
+    serial_println("FERR-QMS Serial initialized");
+    serial_print("Test: Print not line\n");
+    serial_println("Test line: Return cursor 15 steps back\n");
+    serial_return_cur(15);
+    serial_print("Test: Print after return cursor\n");
+    serial_full_return_cur();
+    serial_println("Test line: Now push cursor 14 steps forward");
+    serial_push_cur(14);
+    serial_print("Test: Print after push cursor\n");
 
     char vendor[13];
     char model[49];
