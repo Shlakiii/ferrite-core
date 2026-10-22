@@ -108,7 +108,7 @@ static void cmd_clear(char* args, bool is_elevated);
 static void cmd_mem(char* args, bool is_elevated);
 static void cmd_sinfo(char* args, bool is_elevated);
 static void cmd_about(char* args, bool is_elevated);
-static void cmd_mount(char* args, bool is_elevated);
+void cmd_mount(char* args, bool is_elevated);
 static void cmd_umount(char* args, bool is_elevated);
 static void cmd_dd(char* args, bool is_elevated);
 static void cmd_format(char* args, bool is_elevated);
@@ -120,6 +120,7 @@ static const char* path_basename(const char* path);
 static void path_join(char* out, size_t out_size, const char* dir, const char* name);
 static void sreboot(char* args, bool is_elevated);
 static void sshutdown(char* args, bool is_elevated);
+static void cmd_nukdir(char* args, bool is_elevated);
 
 static ShellCommand commands[] = {
     {"help",    cmd_help,    "Show this help"},
@@ -130,6 +131,7 @@ static ShellCommand commands[] = {
     {"touch",   cmd_touch,   "Create empty file"},
     {"mkdir",   cmd_mkdir,   "Create directory"},
     {"rm",      cmd_rm,      "Remove file or directory"},
+    {"nukedir", cmd_nukdir,   "Remove directory recursively (DANGEROUS!)"},
     {"cp",      cmd_cp,      "Copy file: cp <src> <dst>"},
     {"mv",      cmd_mv,      "Move/rename file: mv <src> <dst>"},
     {"cat",     cmd_cat,     "Display file content"},
@@ -232,6 +234,30 @@ static void cmd_ls(char* args, bool is_elevated) {
 static void cmd_cd(char* args, bool is_elevated) {
     if (!args || !*args) { printg("Usage: cd <directory>"); return; }
     if (!vfs_cd(args)) printg("cd: no such directory");
+}
+
+static void cmd_nukdir(char* args, bool is_elevated) {
+    if (!args || !*args) { printg("Usage: nukedir <directory>"); return; }
+    VFS_Error err = vfs_rmdir(args);
+    if (err && err == VFS_ERR_NOT_EMPTY) {
+        vfs_cd(args);
+        VFS_Dir d = vfs_readdir(".");
+        for (int i = 0; i < d.count; i++) {
+            if (strcmp(d.entries[i].name, ".") == 0 || strcmp(d.entries[i].name, "..") == 0) continue;
+            char childpath[VFS_MAX_PATH];
+            path_join(childpath, VFS_MAX_PATH, vfs_getcwd(), d.entries[i].name);
+            if (d.entries[i].type == VFS_ENT_DIR) {
+                cmd_nukdir(childpath, is_elevated);
+            } else {
+                VFS_Error e = vfs_unlink(childpath);
+                if (e != VFS_OK) printg("nukedir: %s", vfs_strerror(e));
+            }
+        }
+        vfs_cd("/");
+        err = vfs_rmdir(args);
+    } else if (err != VFS_OK) {
+        printg("nukedir: %s", vfs_strerror(err));
+    }
 }
 
 static void cmd_pwd(char* args, bool is_elevated) {
@@ -704,7 +730,7 @@ static AtaDiskIO* alloc_mount_disk(int drive) {
     return nullptr;
 }
 
-static void cmd_mount(char* args, bool is_elevated) {
+void cmd_mount(char* args, bool is_elevated) {
     if (!is_elevated) {
         printgc(12, 0, "mount: Permission denied (root required)");
         return;

@@ -8,6 +8,8 @@ extern "C" {
 extern bool shrboot;
 extern bool shsdown;
 
+extern void cmd_mount(char* args, bool is_elevated);
+
 void run_shell();
 
 #ifdef __cplusplus

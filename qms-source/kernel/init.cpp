@@ -29,6 +29,8 @@
 #include <drivers/pci/pci.h>
 #include <drivers/audio/pcs/pcs.h>
 
+#include <func/ferrc/setup/setup.h>
+
 uint32_t multiboot_magic;
 uint32_t multiboot_addr;
 
@@ -214,6 +216,11 @@ extern "C" void kernel_main() {
     log(3, "SB: Scrollbuf: %d lines x %d cols (%d KB)", SB_LINES, SB_COLS, (int)(SB_MEM_SIZE / 1024));
 
     log(3, "INIT: Kernel initialization completed.");
+    if (qfs_ok){
+        log(3, "QFS Ready");
+        log(3, "Run Ferrite Core files setup");
+        ferrc_setup();
+    }
     log(3, "INIT: Starting shell...");
 
     run_shell();

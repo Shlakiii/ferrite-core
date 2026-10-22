@@ -1,4 +1,5 @@
-CC = g++
+CC = gcc
+CXX = g++
 LD = ld
 NASM = nasm
 OBJCOPY = objcopy
@@ -6,8 +7,10 @@ OBJCOPY = objcopy
 KSRC = kernel
 BUILD_DIR  = isodir/boot/kernel
 
-CFLAGS = -m32 -ffreestanding -c -fno-exceptions -fno-rtti -fno-stack-protector -fno-toplevel-reorder
-CFLAGS += -I$(KSRC) -I$(KSRC)/drivers -I$(KSRC)/func -I$(KSRC)/func/lib -I$(KSRC)/func/lib/data -I$(KSRC)/func/io
+COMMON_FLAGS = -m32 -ffreestanding -c -fno-stack-protector -fno-toplevel-reorder
+INCLUDE_FLAGS = -I$(KSRC) -I$(KSRC)/drivers -I$(KSRC)/func -I$(KSRC)/func/lib -I$(KSRC)/func/lib/data -I$(KSRC)/func/io
+CFLAGS = $(COMMON_FLAGS) $(INCLUDE_FLAGS)
+CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
 
 LDFLAGS = -m elf_i386 -T linker.ld
 
@@ -21,7 +24,10 @@ MKFSFAT := $(shell \
 		done; \
 	done)
 
-C_SOURCES   := $(shell find $(KSRC) -name "*.c")
+C_SOURCES   := $(shell find $(KSRC) -name "*.c" \
+	-not -path "$(KSRC)/luajit/src/host/*" \
+	-not -path "$(KSRC)/luajit/src/luajit.c" \
+	-not -path "$(KSRC)/luajit/src/ljamalg.c")
 CPP_SOURCES := $(shell find $(KSRC) -name "*.cpp")
 
 C_OBJS   := $(patsubst $(KSRC)/%.c,  $(BUILD_DIR)/%.o, $(C_SOURCES))
@@ -134,7 +140,7 @@ dirs:
 $(BUILD_DIR)/%.o: $(KSRC)/%.cpp
 	@echo "Compiling C++: $< "
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $< -o $@
+	$(CXX) $(CXXFLAGS) $< -o $@
 
 $(BUILD_DIR)/%.o: $(KSRC)/%.c
 	@echo "Compiling C: $< "
