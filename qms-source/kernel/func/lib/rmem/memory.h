@@ -13,7 +13,7 @@ static constexpr uint32_t BLOCK_MAGIC      = 0xDEADBEEFu;
 static constexpr uint32_t BLOCK_MAGIC_FREE = 0xFEEDFACEu;
 static constexpr uint32_t SLAB_MAGIC       = 0xCAFEBABEu;
 
-struct BlockHeader {
+struct alignas(8) BlockHeader {
     size_t   size;
     uint32_t magic;
     uint32_t flags;

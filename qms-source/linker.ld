@@ -6,20 +6,20 @@ SECTIONS
 
     .text : {
         KEEP(*(.multiboot))
-        *(.text)
+        *(.text .text.*)
         . = ALIGN(4096);
     }
 
     .rodata ALIGN(4096) : {
-        *(.rodata)
+        *(.rodata .rodata.*)
     }
 
     .data ALIGN(4096) : {
-        *(.data)
+        *(.data .data.*)
     }
 
     .bss ALIGN(4096) : {
-        *(.bss)
+        *(.bss .bss.*)
         *(COMMON)
     }
 

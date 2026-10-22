@@ -1,9 +1,8 @@
 #include "kkd_laptop_generic.h"
 
+#include <stddef.h>
 #include <io/io.h>
 #include <io/printg.h>
-
-#include <cstddef>
 
 static const char* name = "PS/2 Laptop Generic";
 

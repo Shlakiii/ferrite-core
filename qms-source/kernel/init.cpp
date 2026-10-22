@@ -31,6 +31,8 @@
 
 #include <func/ferrc/setup/setup.h>
 
+#include <func/lua/lua_runtime.h>
+
 uint32_t multiboot_magic;
 uint32_t multiboot_addr;
 
@@ -221,6 +223,12 @@ extern "C" void kernel_main() {
         log(3, "Run Ferrite Core files setup");
         ferrc_setup();
     }
+    log(3, "INIT: Starting Lua runtime...");
+    log(3, "Run lua code");
+    lua_run_luac("print('lua is now working in the kernel!')"); // LUA COD !!!
+    lua_run_luac("print('кстати русский язык тоже работает!')"); // LUA COD !!!
+    lua_run_luac("print('finally')");
+    log(3, "Lua test completed.");
     log(3, "INIT: Starting shell...");
 
     run_shell();

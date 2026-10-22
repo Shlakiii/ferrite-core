@@ -2,7 +2,7 @@
 #define _STRING_H
 
 #include <stddef.h>
-#include <cstdint>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -10,6 +10,7 @@ extern "C" {
 
 void*    memset(void* ptr, int value, size_t num);
 void*    memcpy(void* destination, const void* source, size_t num);
+void*    memmove(void* destination, const void* source, size_t num);
 int      memcmp(const void* ptr1, const void* ptr2, size_t num);
 int      strcmp(const char* str1, const char* str2);
 char*    strcpy(char* destination, const char* source);

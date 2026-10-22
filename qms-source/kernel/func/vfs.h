@@ -53,23 +53,23 @@ public:
 
 #endif
 
-struct VFS_Stat {
+typedef struct VFS_Stat {
     char     name[VFS_MAX_NAME];
     uint32_t size;
     uint8_t  type;
-};
+} VFS_Stat;
 
-struct VFS_DirEntry {
+typedef struct VFS_DirEntry {
     char     name[VFS_MAX_NAME];
     uint32_t size;
     uint8_t  type;
-};
+} VFS_DirEntry;
 
-struct VFS_Dir {
+typedef struct VFS_Dir {
     VFS_DirEntry entries[VFS_MAX_DIR_ENTRIES];
     int          count;
     VFS_Error    error;
-};
+} VFS_Dir;
 
 struct VFS_FSDriver;
 

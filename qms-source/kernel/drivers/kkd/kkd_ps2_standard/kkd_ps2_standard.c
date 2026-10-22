@@ -1,9 +1,8 @@
 #include "kkd_ps2_standard.h"
 
+#include <stddef.h>
 #include <io/io.h>
 #include <io/printg.h>
-
-#include <cstddef>
 
 static const char* name = "PS/2 Standard Desktop (101/104-key)";
 

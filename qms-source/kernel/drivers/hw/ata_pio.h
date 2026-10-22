@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #define ATA_PRIMARY_IO      0x1F0
 #define ATA_PRIMARY_CTRL    0x3F6
@@ -34,14 +35,14 @@
 #define ATA_MAX_DRIVES      4
 #define ATA_TIMEOUT_ITER    400000
 
-struct AtaDrive {
+typedef struct AtaDrive {
     bool     present;
     uint16_t io_base;
     uint16_t ctrl_base;
     uint8_t  is_slave;
     uint32_t lba_count;
     char     model[41];
-};
+} AtaDrive;
 
 #ifdef __cplusplus
 extern "C" {

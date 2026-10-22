@@ -1,6 +1,7 @@
 #include "string.h"
 
-#include <cstdint>
+#include <stdint.h>
+#include <stdbool.h>
 
 char* strcpy(char* destination, const char* source) {
     char* original_dest = destination;
@@ -70,6 +71,23 @@ void* memcpy(void* destination, const void* source, size_t num) {
     const char* src = (const char*)source;
     for (size_t i = 0; i < num; ++i) {
         dest[i] = src[i];
+    }
+
+    return destination;
+}
+
+void* memmove(void* destination, const void* source, size_t num) {
+    unsigned char* dest = (unsigned char*)destination;
+    const unsigned char* src = (const unsigned char*)source;
+
+    if ((uintptr_t)dest < (uintptr_t)src) {
+        for (size_t i = 0; i < num; ++i)
+            dest[i] = src[i];
+    } else if ((uintptr_t)dest > (uintptr_t)src) {
+        while (num > 0) {
+            --num;
+            dest[num] = src[num];
+        }
     }
 
     return destination;
@@ -156,7 +174,7 @@ char* strstr(char* str, const char* target) {
         if (!*p2) return str;
     }
 
-    return nullptr;
+    return NULL;
 }
 
 char* strcat(char* dest, const char* src) {

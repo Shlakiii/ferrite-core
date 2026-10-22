@@ -11,8 +11,17 @@ COMMON_FLAGS = -m32 -ffreestanding -c -fno-stack-protector -fno-toplevel-reorder
 INCLUDE_FLAGS = -I$(KSRC) -I$(KSRC)/drivers -I$(KSRC)/func -I$(KSRC)/func/lib -I$(KSRC)/func/lib/data -I$(KSRC)/func/io
 CFLAGS = $(COMMON_FLAGS) $(INCLUDE_FLAGS)
 CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
+LUAJIT_BUILD_DIR = $(BUILD_DIR)/luajit-build
+LUAJIT_BUILD_SRC = $(LUAJIT_BUILD_DIR)/src
+LUAJIT_OBJECT_DIR = $(LUAJIT_BUILD_DIR)/obj
+LUAJIT_STAMP = $(LUAJIT_BUILD_DIR)/.prepared
+LUAJIT_SOURCE_FILES = $(shell find $(KSRC)/luajit/src $(KSRC)/luajit/dynasm -type f) $(KSRC)/luajit/.relver
+LUAJIT_C_SOURCES = $(wildcard $(KSRC)/luajit/src/lj_*.c)
+LUAJIT_OBJECTS = $(patsubst $(KSRC)/luajit/src/%.c,$(LUAJIT_OBJECT_DIR)/%.o,$(LUAJIT_C_SOURCES)) $(LUAJIT_OBJECT_DIR)/lib_base.o $(LUAJIT_OBJECT_DIR)/lj_vm.o
+LUAJIT_FLAGS = -m32 -ffreestanding -fno-stack-protector -fno-pic -fno-pie -fno-builtin -ffunction-sections -fdata-sections -DLUAJIT_OS=LUAJIT_OS_OTHER -DLUAJIT_DISABLE_JIT -DLUAJIT_DISABLE_FFI -DLUAJIT_DISABLE_PROFILE -DLUAJIT_DISABLE_VMEVENT -DLUAJIT_NO_UNWIND -DLUAJIT_SECURITY_PRNG=0 -DLUAJIT_USE_SYSMALLOC
+LIBGCC = $(shell $(CC) -m32 -print-libgcc-file-name)
 
-LDFLAGS = -m elf_i386 -T linker.ld
+LDFLAGS = -m elf_i386 -T linker.ld --gc-sections
 
 DISK_IMG  = disk.img
 DISK_SIZE = 32
@@ -25,9 +34,7 @@ MKFSFAT := $(shell \
 	done)
 
 C_SOURCES   := $(shell find $(KSRC) -name "*.c" \
-	-not -path "$(KSRC)/luajit/src/host/*" \
-	-not -path "$(KSRC)/luajit/src/luajit.c" \
-	-not -path "$(KSRC)/luajit/src/ljamalg.c")
+	-not -path "$(KSRC)/luajit/*")
 CPP_SOURCES := $(shell find $(KSRC) -name "*.cpp")
 
 C_OBJS   := $(patsubst $(KSRC)/%.c,  $(BUILD_DIR)/%.o, $(C_SOURCES))
@@ -36,7 +43,7 @@ CPP_OBJS := $(patsubst $(KSRC)/%.cpp,$(BUILD_DIR)/%.o, $(CPP_SOURCES))
 ALL_OBJS  := $(C_OBJS) $(CPP_OBJS)
 INIT_OBJ  := $(BUILD_DIR)/init.o
 OTHER_OBJS:= $(filter-out $(INIT_OBJ),$(ALL_OBJS))
-OBJS      := $(INIT_OBJ) $(OTHER_OBJS)
+OBJS      := $(INIT_OBJ) $(OTHER_OBJS) $(LUAJIT_OBJECTS)
 
 TARGET  = $(BUILD_DIR)/kernel.bin
 QMS_ISO = qms.iso
@@ -124,7 +131,7 @@ $(STAGE2_BIN): $(STAGE2_SRC)
 
 kernel: dirs $(OBJS)
 	@echo "Linking clean kernel..."
-	$(LD) $(LDFLAGS) $(OBJS) -o $(TARGET)
+	$(LD) $(LDFLAGS) $(OBJS) $(LIBGCC) -o $(TARGET)
 	@echo "Kernel built successfully (Clean version)."
 
 iso: kernel
@@ -145,7 +152,24 @@ $(BUILD_DIR)/%.o: $(KSRC)/%.cpp
 $(BUILD_DIR)/%.o: $(KSRC)/%.c
 	@echo "Compiling C: $< "
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $< -o $@
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+$(LUAJIT_STAMP): $(LUAJIT_SOURCE_FILES)
+	@mkdir -p $(LUAJIT_BUILD_DIR)
+	@cp -a $(KSRC)/luajit/src $(KSRC)/luajit/dynasm $(LUAJIT_BUILD_DIR)/
+	@cp -a $(KSRC)/luajit/.relver $(LUAJIT_BUILD_DIR)/
+	$(MAKE) -C $(LUAJIT_BUILD_SRC) clean
+	$(MAKE) -C $(LUAJIT_BUILD_SRC) host/buildvm HOST_CC='gcc -m32' CC=gcc TARGET_FLAGS='-m32 -ffreestanding' TARGET_SYS=Other XCFLAGS='$(LUAJIT_FLAGS)'
+	$(MAKE) -C $(LUAJIT_BUILD_SRC) lj_vm.S lj_bcdef.h lj_ffdef.h lj_libdef.h lj_recdef.h lj_folddef.h jit/vmdef.lua HOST_CC='gcc -m32' CC=gcc TARGET_FLAGS='-m32 -ffreestanding' TARGET_SYS=Other XCFLAGS='$(LUAJIT_FLAGS)'
+	@touch $@
+
+$(LUAJIT_OBJECT_DIR)/%.o: $(LUAJIT_STAMP)
+	@mkdir -p $(LUAJIT_OBJECT_DIR)
+	$(CC) $(LUAJIT_FLAGS) -I$(LUAJIT_BUILD_SRC) -c $(LUAJIT_BUILD_SRC)/$*.c -o $@
+
+$(LUAJIT_OBJECT_DIR)/lj_vm.o: $(LUAJIT_STAMP)
+	@mkdir -p $(LUAJIT_OBJECT_DIR)
+	$(CC) $(LUAJIT_FLAGS) -c $(LUAJIT_BUILD_SRC)/lj_vm.S -o $@
 
 clean:
 	@echo "Full clean"
