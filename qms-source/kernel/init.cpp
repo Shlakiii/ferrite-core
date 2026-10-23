@@ -60,6 +60,7 @@ __asm__ (
     "push %ebp\n"
     "mov %esp, %ebp\n"
     "call kernel_main\n"
+    "call out_handler\n"
     "hlt\n"
 );
 
@@ -113,7 +114,7 @@ static void init_fpu_sse() {
     __asm__ volatile("fninit");
 }
 
-extern "C" void kernel_main() {
+extern "C" int kernel_main() {
     fb_init(multiboot_addr);
     init_printg();
     show_gbanner(cursor_x, cursor_y);
@@ -265,4 +266,21 @@ extern "C" void kernel_main() {
     } else {
         kernel_panic("INIT: Shell exited unexpectedly.");
     }
+}
+
+extern "C" void out_handler(){
+    printg("");
+    printg("'''''''''''''''''''''''''''''''''''''''");
+    printg("'''''''''''''''''''''''''''''''''''''''");
+    printg("OUT OF EXECUTION LIMIT @ HANDLED");
+    printg("KERNEL FATAL ERROR");
+    printg("KERNEL OUT OF EXECUTION LIMIT");
+    printg("NO EXECUTION CONTINUE");
+    printg("PLEASE RESTART YOUR PC/VM");
+    printg("SYSTEM HALTED");
+    printg("'''''''''''''''''''''''''''''''''''''''");
+    printg("'''''''''''''''''''''''''''''''''''''''");
+    printg("");
+    printg("PLEASE RESTART YOUR PC/VM");
+    while (1) { __asm__ __volatile__("hlt"); }
 }
