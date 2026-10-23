@@ -23,6 +23,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include <func/lua/lua_runtime.h>
+
 #define HISTORY_SIZE 32
 #define MAX_CMD_LEN  256
 
@@ -108,6 +110,7 @@ static void cmd_clear(char* args, bool is_elevated);
 static void cmd_mem(char* args, bool is_elevated);
 static void cmd_sinfo(char* args, bool is_elevated);
 static void cmd_about(char* args, bool is_elevated);
+static void cmd_run_lua(char* args, bool is_elevated);
 void cmd_mount(char* args, bool is_elevated);
 static void cmd_umount(char* args, bool is_elevated);
 static void cmd_dd(char* args, bool is_elevated);
@@ -136,6 +139,7 @@ static ShellCommand commands[] = {
     {"mv",      cmd_mv,      "Move/rename file: mv <src> <dst>"},
     {"cat",     cmd_cat,     "Display file content"},
     {"run",     cmd_run,     "Run .qex application (-s = as root)"},
+    {"run_lua", cmd_run_lua, "Run Lua script: run_lua <script>"},
     {"su",      cmd_su,      "Switch to root user"},
     {"lsblk",   cmd_lsblk,   "List block devices (ATA drives)"},
     {"mount",   cmd_mount,   "Mount filesystem: mount <disk> <mountpoint>"},
@@ -229,6 +233,11 @@ static void cmd_ls(char* args, bool is_elevated) {
             printgc(7, 0, "  %s" PG_NNL, dir.entries[i].name);
     }
     printg("");
+}
+
+static void cmd_run_lua(char* args, bool is_elevated) {
+    if (!args || !*args) { printg("Usage: run_lua <script>"); return; }
+    lua_run_luac(args);
 }
 
 static void cmd_cd(char* args, bool is_elevated) {

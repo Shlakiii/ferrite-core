@@ -3,6 +3,7 @@
 
 extern "C" {
 #include <luajit/src/lua.h>
+#include <luajit/src/lualib.h>
 }
 
 extern "C" void printg(const char* fmt, ...);
@@ -89,9 +90,13 @@ void lua_run_luac(char* source_code) {
         return;
     }
 
+    luaopen_base(state);
+
     lua_atpanic(state, lua_kernel_panic);
     lua_pushcfunction(state, lua_kernel_print);
     lua_setglobal(state, "print");
+    //luaopen_string(state);
+
 
     LuaSource source = {source_code, false};
     int status = lua_load(state, lua_source_reader, &source, "=boot.lua");

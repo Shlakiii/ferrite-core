@@ -6,7 +6,7 @@
 ** Copyright (C) 1994-2011 Lua.org, PUC-Rio. See Copyright Notice in lua.h
 */
 
-#include <stdio.h>
+//#include <stdio.h>
 
 #define lib_base_c
 #define LUA_LIB
@@ -36,6 +36,8 @@
 #include "lj_strscan.h"
 #include "lj_strfmt.h"
 #include "lj_lib.h"
+
+#include <func/lua/luaheap_func_bridge.h>
 
 /* -- Base library: checks ------------------------------------------------ */
 

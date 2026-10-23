@@ -91,6 +91,28 @@ void kernel_panic(const char* msg) {
     while (1) { __asm__ __volatile__("hlt"); }
 }
 
+static void init_fpu_sse() {
+    if (!cpuid_is_supported())
+        kernel_panic("CPU: CPUID is required for LuaJIT.");
+
+    cpuid_result_t features;
+    cpu_id(1, 0, &features);
+    if (!(features.edx & (1u << 26)))
+        kernel_panic("CPU: SSE2 is required for LuaJIT.");
+
+    uint32_t cr0;
+    uint32_t cr4;
+    __asm__ volatile("mov %%cr0, %0" : "=r"(cr0));
+    cr0 &= ~((1u << 2) | (1u << 3));
+    cr0 |= (1u << 1) | (1u << 5);
+    __asm__ volatile("mov %0, %%cr0" : : "r"(cr0) : "memory");
+
+    __asm__ volatile("mov %%cr4, %0" : "=r"(cr4));
+    cr4 |= (1u << 9) | (1u << 10);
+    __asm__ volatile("mov %0, %%cr4" : : "r"(cr4) : "memory");
+    __asm__ volatile("fninit");
+}
+
 extern "C" void kernel_main() {
     fb_init(multiboot_addr);
     init_printg();
@@ -110,6 +132,7 @@ extern "C" void kernel_main() {
 
     log(3, "VFS: Initialized...");
     init_gdt();
+    init_fpu_sse();
     log(3, "VFS: Init done");
 
     size_t total_ram_kb = 0;
