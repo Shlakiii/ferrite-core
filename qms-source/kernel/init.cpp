@@ -48,8 +48,8 @@ __asm__ (
     ".long 0\n"
     ".long 0\n"
     ".long 0\n"
-    ".long 1024\n"
-    ".long 768\n"
+    ".long 800\n"
+    ".long 600\n"
     ".long 32\n"
 
     ".section .text\n"
@@ -241,10 +241,12 @@ extern "C" void kernel_main() {
     log(3, "SB: Scrollbuf: %d lines x %d cols (%d KB)", SB_LINES, SB_COLS, (int)(SB_MEM_SIZE / 1024));
 
     log(3, "INIT: Kernel initialization completed.");
-    if (qfs_ok){
-        log(3, "QFS Ready");
+    if (ata_count >= 1){
+        log(3, "Drive Ready");
         log(3, "Run Ferrite Core files setup");
         ferrc_setup();
+    }else{
+        log(2, "Skip 0 mount. (No ata0 drive)");
     }
     log(3, "INIT: Starting Lua runtime...");
     log(3, "Run lua code");

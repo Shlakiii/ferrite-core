@@ -1,5 +1,6 @@
 #include <func/lib/rmem/memory.h>
 #include <func/lua/lua_runtime.h>
+#include <func/io/printg.h>
 
 extern "C" {
 #include <luajit/src/lua.h>
@@ -84,27 +85,26 @@ static const char* lua_source_reader(lua_State*, void* data, size_t* size) {
 }
 
 void lua_run_luac(char* source_code) {
-    lua_State* state = lua_newstate(lua_kernel_alloc, nullptr);
-    if (!state) {
+    lua_State* LS = lua_newstate(lua_kernel_alloc, nullptr);
+    if (!LS) {
         printg("Lua: failed to create state");
         return;
     }
 
-    luaopen_base(state);
+    luaopen_base(LS);
     //luaopen_string(state);
 
-    lua_atpanic(state, lua_kernel_panic);
-    lua_pushcfunction(state, lua_kernel_print);
-    lua_setglobal(state, "print");
-
+    lua_atpanic(LS, lua_kernel_panic);
+    lua_pushcfunction(LS, lua_kernel_print);
+    lua_setglobal(LS, "print");    
 
     LuaSource source = {source_code, false};
-    int status = lua_load(state, lua_source_reader, &source, "=boot.lua");
-    if (status == 0) status = lua_pcall(state, 0, 0, 0);
+    int status = lua_load(LS, lua_source_reader, &source, "=boot.lua");
+    if (status == 0) status = lua_pcall(LS, 0, 0, 0);
     if (status != 0) {
-        const char* message = lua_tolstring(state, -1, nullptr);
+        const char* message = lua_tolstring(LS, -1, nullptr);
         printg("Lua error: %s", message ? message : "unknown error");
     }
 
-    lua_close(state);
+    lua_close(LS);
 }
