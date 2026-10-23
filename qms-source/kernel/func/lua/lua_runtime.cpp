@@ -91,11 +91,11 @@ void lua_run_luac(char* source_code) {
     }
 
     luaopen_base(state);
+    //luaopen_string(state);
 
     lua_atpanic(state, lua_kernel_panic);
     lua_pushcfunction(state, lua_kernel_print);
     lua_setglobal(state, "print");
-    //luaopen_string(state);
 
 
     LuaSource source = {source_code, false};

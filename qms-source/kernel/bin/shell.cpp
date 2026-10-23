@@ -681,13 +681,28 @@ void cmd_sinfo(char* args, bool is_elevated) {
 void cmd_about(char* args, bool is_elevated) {
     show_gbanner(cursor_x, cursor_y);
 
-    printgc(15, 0, "QMS Operating System");
-    printgc(7,  0, "  Kernel : QCore %s %s", CORE_VER, BUILD_TAG);
-    printgc(7,  0, "  Shell  : %s v%s", SH_NAME, SH_VER);
-    printgc(7,  0, "  Arch   : %s", CARCH);
-    printgc(7,  0, "  Build  : " __DATE__ " " __TIME__);
-    printgc(8,  0, "  License: %s", LICENSE);
+    printgc(15,0,"Ferrite Core");
+    printgc(7,0,"  Kernel     : QMS Kernel");
+    printgc(7,0,"  Shell      : %s v%s", SH_NAME, SH_VER);
+    printgc(7,0,"  Version    : %s | %s | %s", FERR_VER, FERR_B_TA, FERR_BUILD_TAG);
+    printgc(7,0,"  Build Date : %s",FERR_BUILD_DATE);
+    printgc(7,0,"  Features   : LuaJIT, Execute Lua Code");
+    printgc(8,0,"  License    : %s",FERR_LICENSE);
+    printgc(7,0,"");
+
+    printgc(15,0,"  Development Team:");
+    printgc(7,0,"   Lead Developer: %s", FERR_AUTHOR);
+
+    printgc(7, 0, "");
+
+    printgc(15, 0, "QMS Kernel");
+    printgc(7,  0, "  Kernel     : QCore %s %s", CORE_VER, BUILD_TAG);
+    printgc(7,  0, "  Shell      : %s v%s", SH_NAME, SH_VER);
+    printgc(7,  0, "  Arch       : %s", CARCH);
+    printgc(7,  0, "  Build      : " __DATE__ " " __TIME__);
+    printgc(8,  0, "  License    : %s", LICENSE);
     printgc(7,  0, ""); 
+
     printgc(15, 0, "  Development Team:"); 
     printgc(7,  0, "    Lead Developer: %s", AUTHOR);
     printgc(7,  0, "    Coder: C0000374");

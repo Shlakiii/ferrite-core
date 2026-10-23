@@ -29,12 +29,14 @@ extern int users_count;
 #define PASSWORD           "12345678"
 
 #define FERR_NAME          "Ferrite Core"
-#define FERR_VER           "0.0.2a"
-#define FERR_BUILD_TAG     "Ferrite launch"
+#define FERR_VER           "0.8.3"
+#define FERR_B_TA          "Beta"
+#define FERR_BUILD_TAG     "Checkpoint of Lua"
 #define FERR_AUTHOR        "Shlakiii"
 #define FERR_LICENSE       "Apache 2.0"
 #define FERR_SH_NAME       "FERR-C"
 #define FERR_SH_VER        "0.2"
+#define FERR_BUILD_DATE    "Oct 23, 2026, 18:37"
 
 #define FUSION_NAME        "FERRITE-QMS"
 #define SH_FUSION_NAME     "FERR-QMS"
