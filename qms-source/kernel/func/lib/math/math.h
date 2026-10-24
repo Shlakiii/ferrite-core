@@ -9,6 +9,7 @@ char* add(const char* a, const char* b);
 char* sub(const char* a, const char* b);
 char* mul(const char* a, const char* b);
 char* div(const char* a, const char* b);
+double fmodd(double x, double y);
 
 int compare(const char* a, const char* b);
 

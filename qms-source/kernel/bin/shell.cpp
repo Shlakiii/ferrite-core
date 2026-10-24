@@ -632,15 +632,26 @@ static void print_mem_bar(size_t used, size_t total, int width) {
 void cmd_mem(char* args, bool is_elevated) {
     MemoryStats ks = kernel_mem_manager->get_stats();
     MemoryStats us = user_mem_manager->get_stats();
+    MemoryStats ls = lua_mem_manager->get_stats();
+    printgc(8, 0,"");
     printgc(7, 0, "Kernel heap:" PG_NNL);
     print_mem_bar(ks.used_bytes, ks.total_bytes, 32);
     printgc(7, 0, " %d / %d KB", (int)(ks.used_bytes/1024), (int)(ks.total_bytes/1024));
     printgc(8, 0, "  Free  : %d KB", (int)(ks.free_bytes / 1024));
     printgc(8, 0, "  Allocs: %d active, %d slab, %d page", (int)ks.alloc_count, (int)ks.slab_allocs, (int)ks.page_allocs);
+    printgc(8, 0,"");
     printgc(7, 0, "User heap:" PG_NNL);
     print_mem_bar(us.used_bytes, us.total_bytes, 32);
     printgc(7, 0, " %d / %d KB", (int)(us.used_bytes/1024), (int)(us.total_bytes/1024));
     printgc(7, 0, "  Free  : %d KB", (int)(us.free_bytes / 1024));
+    printgc(8, 0, "  Allocs: %d active, %d slab, %d page", (int)us.alloc_count, (int)us.slab_allocs, (int)us.page_allocs);
+    printgc(8, 0,"");
+    printgc(7, 0, "Lua heap:" PG_NNL);
+    print_mem_bar(ls.used_bytes, ls.total_bytes, 32);
+    printgc(7, 0, " %d / %d KB", (int)(ls.used_bytes/1024), (int)(ls.total_bytes/1024));
+    printgc(7, 0, "  Free  : %d KB", (int)(ls.free_bytes / 1024));
+    printgc(8, 0, "  Allocs: %d active, %d slab, %d page", (int)ls.alloc_count, (int)ls.slab_allocs, (int)ls.page_allocs);
+    printgc(8, 0,"");
 }
 
 void cmd_sinfo(char* args, bool is_elevated) {

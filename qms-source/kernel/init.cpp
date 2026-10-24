@@ -69,9 +69,11 @@ extern "C" char end;
 
 MemoryManager* kernel_mem_manager = nullptr;
 MemoryManager* user_mem_manager   = nullptr;
+MemoryManager* lua_mem_manager    = nullptr;
 
 alignas(MemoryManager) char km_obj[sizeof(MemoryManager)];
 alignas(MemoryManager) char um_obj[sizeof(MemoryManager)];
+alignas(MemoryManager) char lm_obj[sizeof(MemoryManager)];
 
 void*  ramfs_primary_addr = nullptr;
 size_t ramfs_primary_size = 0;
@@ -158,18 +160,21 @@ extern "C" int kernel_main() {
 
     static constexpr size_t KERNEL_MIN       = 2 * 1024 * 1024;
     static constexpr size_t KERNEL_MAX_RATIO = 16;
+    static constexpr size_t LUA_QUOTA_SIZE   = 10 * 1024 * 1024;
 
     size_t kernel_quota = usable_bytes / KERNEL_MAX_RATIO;
     if (kernel_quota < KERNEL_MIN) kernel_quota = KERNEL_MIN;
     kernel_quota = (kernel_quota + 4095) & ~4095UL;
 
-    if (kernel_quota >= usable_bytes)
+    if (LUA_QUOTA_SIZE+(1*1024*1024)+kernel_quota >= usable_bytes)
         kernel_panic("MM: Not enough RAM to split heaps.");
 
-    size_t user_quota = usable_bytes - kernel_quota;
+    size_t lua_quota = LUA_QUOTA_SIZE;
+    size_t user_quota = usable_bytes - kernel_quota - lua_quota;
 
     kernel_mem_manager = new (km_obj) MemoryManager(free_mem_start, kernel_quota);
-    user_mem_manager   = new (um_obj) MemoryManager(free_mem_start + kernel_quota, user_quota);
+    lua_mem_manager    = new (lm_obj) MemoryManager(free_mem_start + kernel_quota, lua_quota);
+    user_mem_manager   = new (um_obj) MemoryManager(free_mem_start + kernel_quota + lua_quota, user_quota);
 
     log(3, "IDT: Initializing...");
     init_idt();

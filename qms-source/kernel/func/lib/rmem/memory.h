@@ -109,6 +109,7 @@ private:
 
 extern MemoryManager* kernel_mem_manager;
 extern MemoryManager* user_mem_manager;
+extern MemoryManager* lua_mem_manager;
 
 void init_memory_manager(uintptr_t start, size_t size);
 

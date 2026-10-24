@@ -3,6 +3,7 @@
 #include <lib/strtools/string.h>
 
 extern MemoryManager* kernel_mem_manager;
+extern MemoryManager* lua_mem_manager;
 extern MemoryManager* user_mem_manager;
 
 void init_memory_manager(uintptr_t start, size_t size) {
@@ -248,6 +249,7 @@ void* MemoryManager::allocate(size_t size) {
 
     ++page_allocs;
     ++alloc_count;
+    
     return reinterpret_cast<void*>(block_addr + sizeof(BlockHeader));
 }
 
@@ -461,5 +463,15 @@ extern "C" {
     }
     void* k_realloc(void* ptr, size_t new_size) {
         return kernel_mem_manager->reallocate(ptr, new_size);
+    }
+
+    void* l_alloc(size_t size) {
+        return lua_mem_manager->allocate(size);
+    }
+    void* l_free(void* p) {
+        lua_mem_manager->free(p);
+    }
+    void* l_realloc(void* ptr, size_t new_size) {
+        return lua_mem_manager->reallocate(ptr, new_size);
     }
 }

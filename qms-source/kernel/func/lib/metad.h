@@ -36,7 +36,7 @@ extern int users_count;
 #define FERR_LICENSE       "Apache 2.0"
 #define FERR_SH_NAME       "FERR-C"
 #define FERR_SH_VER        "0.2"
-#define FERR_BUILD_DATE    "Oct 23, 2026, 18:37"
+#define FERR_BUILD_DATE    "Oct 24, 2026, 17:00"
 
 #define FUSION_NAME        "FERRITE-QMS"
 #define SH_FUSION_NAME     "FERR-QMS"

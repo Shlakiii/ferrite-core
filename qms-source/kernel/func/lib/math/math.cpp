@@ -138,3 +138,16 @@ char* div(const char* a, const char* b) {
     delete[] res; delete[] rem;
     return res_neg && strcmp(f, "0") != 0 ? attach_minus(f) : f;
 }
+
+double fmodd(double x, double y){
+    double ax = x < 0 ? -x : x;
+    double ay = y < 0 ? -y : y;
+    if (ax < ay) return x;
+
+    while (ax >= ay) {
+        double d = ay;
+        while (d <= ax / 2) d *= 2;
+        ax -= d;
+    }
+    return (x < 0) ? -ax : ax;
+}
