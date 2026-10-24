@@ -95,7 +95,7 @@ void lua_run_luac(char* source_code) {
     }
 
     luaopen_base(LS);
-    luaopen_math(LS);
+    //luaopen_math(LS);
 
     lua_atpanic(LS, lua_kernel_panic);
     lua_pushcfunction(LS, lua_kernel_print);
