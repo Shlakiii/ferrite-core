@@ -80,6 +80,11 @@ static int serial_println_serial(lua_State* state) {
     return 0;
 }
 
+static int lua_serial_new_line_manual(lua_State*){
+    serial_new_line_manual();
+    return 0;
+}
+
 struct LuaSource {
     const char* text;
     bool returned;
@@ -121,6 +126,9 @@ void lua_run_luac(char* source_code) {
     // функция serial.println
     lua_pushcfunction(LS, serial_println_serial);
     lua_setfield(LS, -2, "println");
+    // функция serial.newline_m
+    lua_pushcfunction(LS, lua_serial_new_line_manual);
+    lua_setfield(LS, -2, "newline_m");
     // устaновка таблицы serial
     lua_setglobal(LS, "serial");
 
