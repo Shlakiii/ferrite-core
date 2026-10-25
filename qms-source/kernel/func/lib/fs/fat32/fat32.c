@@ -377,9 +377,64 @@ int fat32_flush_entry(struct fat32_file *file) {
         (struct fat32_dir_entry*)fs->cluster_buffer + entry_offset;
 
     e->file_size  = file->size;
+    e->attr       = file->attr;
     e->cluster_hi = (uint16_t)(file->start_cluster >> 16);
     e->cluster_lo = (uint16_t)(file->start_cluster & 0xFFFF);
 
+    return write_cluster(fs, entry_cluster, fs->cluster_buffer);
+}
+
+static int fat32_find_path_entry(struct fat32_fs *fs, const char *path,
+                                 struct fat32_dir_entry *entry,
+                                 uint32_t *entry_cluster, uint32_t *entry_offset) {
+    if (!fs || !path || !validate_path(path)) return -1;
+    if (*path == '/') path++;
+
+    char parent_path[256];
+    const char *name = strrchr(path, '/');
+    uint32_t dir_cluster = fs->root_cluster;
+    if (name) {
+        size_t length = (size_t)(name - path);
+        if (length >= sizeof(parent_path) || !name[1]) return -1;
+        memcpy(parent_path, path, length);
+        parent_path[length] = '\0';
+        name++;
+
+        if (parent_path[0]) {
+            struct fat32_file parent;
+            if (fat32_open(fs, parent_path, &parent) < 0 ||
+                !(parent.attr & FAT32_ATTR_DIRECTORY))
+                return -1;
+            dir_cluster = parent.start_cluster;
+        }
+    } else {
+        name = path;
+    }
+    if (!*name) return -1;
+    return find_entry(fs, dir_cluster, name, entry, entry_cluster, entry_offset);
+}
+
+int fat32_get_entry_attributes(struct fat32_fs *fs, const char *path, uint8_t *attributes) {
+    if (!attributes) return -1;
+    struct fat32_dir_entry entry;
+    if (fat32_find_path_entry(fs, path, &entry, NULL, NULL) < 0) return -1;
+    *attributes = entry.attr;
+    return 0;
+}
+
+int fat32_set_entry_attributes(struct fat32_fs *fs, const char *path, uint8_t mask, uint8_t values) {
+    const uint8_t supported = FAT32_ATTR_SYSTEM | FAT32_ATTR_HIDDEN;
+    if ((mask & (uint8_t)~supported) != 0) return -1;
+
+    struct fat32_dir_entry entry;
+    uint32_t entry_cluster, entry_offset;
+    if (fat32_find_path_entry(fs, path, &entry, &entry_cluster, &entry_offset) < 0)
+        return -1;
+    if (read_cluster(fs, entry_cluster, fs->cluster_buffer) < 0) return -1;
+
+    struct fat32_dir_entry *disk_entry =
+        (struct fat32_dir_entry*)fs->cluster_buffer + entry_offset;
+    disk_entry->attr = (uint8_t)((disk_entry->attr & (uint8_t)~mask) | (values & mask));
     return write_cluster(fs, entry_cluster, fs->cluster_buffer);
 }
 

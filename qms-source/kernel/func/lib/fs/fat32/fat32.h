@@ -117,6 +117,8 @@ int fat32_readdir(struct fat32_dir *dir, struct fat32_file *file);
 int fat32_mkdir(struct fat32_fs *fs, const char *path);
 
 int fat32_flush_entry(struct fat32_file *file);
+int fat32_get_entry_attributes(struct fat32_fs *fs, const char *path, uint8_t *attributes);
+int fat32_set_entry_attributes(struct fat32_fs *fs, const char *path, uint8_t mask, uint8_t values);
 
 #ifdef __cplusplus
 }

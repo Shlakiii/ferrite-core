@@ -110,6 +110,7 @@ Main VFS API functions:
   vfs_seek(fd, offset, whence)  - seek in file
   vfs_stat_path(path, stat_out) - get file/dir info
   vfs_readdir(path)             - read directory contents
+  vfs_setattribute(path, attrs)- set or clear file attributes
   vfs_mkdir(path)               - create directory
   vfs_rmdir(path)               - remove directory
   vfs_unlink(path)              - delete file
@@ -117,6 +118,13 @@ Main VFS API functions:
   vfs_cd(path)                  - change current directory
   vfs_mount(mp, fs, ...)        - mount file system
   vfs_umount(mp)                - unmount file system
+
+File attributes:
+  vfs_setattribute("/dontdelete", "-sys -hide") - protect the file from
+    writes/deletion by regular users, and hide it from directory listings.
+  "-sys"/"-hide" enable an attribute; "+sys"/"+hide" clear it.
+  Only root may set or clear "sys". Attributes persist on QFS, FAT16 and FAT32.
+  In the shell, touch <path> creates a file and setattr <path> <attrs> changes attributes.
 
 
 7. DEVICE DRIVERS

@@ -117,7 +117,8 @@ typedef struct {
     X(61,  void,        show_gbanner, (int x, int y), show_gbanner) \
     X(62,  void,        show_banner, (void), show_banner) \
     X(63,  SbilError,   sbil_run,  (const char* path), sbil_run) \
-    X(64,  SbilError,   sbil_check, (const char* path), sbil_check)
+    X(64,  SbilError,   sbil_check, (const char* path), sbil_check) \
+    X(65,  VFS_Error,   vfs_setattribute, (const char* path, const char* attributes), vfs_setattribute)
 
 #define SBI_ROOT_ENTRIES(X) \
     X(1,   uint8_t,     inb, (uint16_t port), inb) \
@@ -145,7 +146,7 @@ typedef struct {
 
 typedef struct {
     SBI_NOROOT_ENTRIES(AS_NOROOT_MEMBER)
-    void* reserved[SBI_NOROOT_MAX - 64 ];
+    void* reserved[SBI_NOROOT_MAX - 65 ];
 } sbi_noroot_t;
 
 typedef struct {

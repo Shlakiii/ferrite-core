@@ -101,6 +101,7 @@ static void cmd_ls(char* args, bool is_elevated);
 static void cmd_cd(char* args, bool is_elevated);
 static void cmd_pwd(char* args, bool is_elevated);
 static void cmd_touch(char* args, bool is_elevated);
+static void cmd_setattr(char* args, bool is_elevated);
 static void cmd_mkdir(char* args, bool is_elevated);
 static void cmd_rm(char* args, bool is_elevated);
 static void cmd_cat(char* args, bool is_elevated);
@@ -131,7 +132,8 @@ static ShellCommand commands[] = {
     {"ls",      cmd_ls,      "List directory"},
     {"cd",      cmd_cd,      "Change directory"},
     {"pwd",     cmd_pwd,     "Print working directory"},
-    {"touch",   cmd_touch,   "Create empty file"},
+    {"touch",   cmd_touch,   "Create an empty file"},
+    {"setattr", cmd_setattr, "Set file attributes"},
     {"mkdir",   cmd_mkdir,   "Create directory"},
     {"rm",      cmd_rm,      "Remove file or directory"},
     {"nukedir", cmd_nukdir,   "Remove directory recursively (DANGEROUS!)"},
@@ -157,6 +159,7 @@ static ShellCommand commands[] = {
 };
 
 void execute_command(char* line, bool is_elevated) {
+    vfs_set_current_user(is_elevated);
     char* args = NULL;
     char* p = line;
     while (*p && !isspace(*p)) p++;
@@ -168,9 +171,11 @@ void execute_command(char* line, bool is_elevated) {
     for (int i = 0; commands[i].name; i++) {
         if (strcmp(line, commands[i].name) == 0) {
             commands[i].func(args, is_elevated);
+            vfs_set_current_user(is_root);
             return;
         }
     }
+    vfs_set_current_user(is_root);
     printgc(12, 0, "Unknown command: %s", line);
 }
 
@@ -274,9 +279,39 @@ static void cmd_pwd(char* args, bool is_elevated) {
 }
 
 static void cmd_touch(char* args, bool is_elevated) {
-    if (!args || !*args) { printg("Usage: touch <name>"); return; }
-    VFS_Error err = vfs_creat(args, VFS_ENT_FILE);
+    if (!args || !*args) { printg("Usage: touch <path>"); return; }
+    while (*args == ' ' || *args == '\t') args++;
+    VFS_Stat stat;
+    VFS_Error err = vfs_stat_path(args, &stat);
+    if (err == VFS_OK) return;
+    if (err != VFS_ERR_NOT_FOUND) {
+        printg("touch: %s", vfs_strerror(err));
+        return;
+    }
+    err = vfs_creat(args, VFS_ENT_FILE);
     if (err != VFS_OK) printg("touch: %s", vfs_strerror(err));
+}
+
+static void cmd_setattr(char* args, bool is_elevated) {
+    if (!args || !*args) {
+        printg("Usage: setattr <path> [-sys] [+sys] [-hide] [+hide]");
+        return;
+    }
+    while (*args == ' ' || *args == '\t') args++;
+    char* attributes = args;
+    while (*attributes && *attributes != ' ' && *attributes != '\t') attributes++;
+    if (!*attributes) {
+        printg("Usage: setattr <path> [-sys] [+sys] [-hide] [+hide]");
+        return;
+    }
+    *attributes++ = '\0';
+    while (*attributes == ' ' || *attributes == '\t') attributes++;
+    if (!*attributes) {
+        printg("Usage: setattr <path> [-sys] [+sys] [-hide] [+hide]");
+        return;
+    }
+    VFS_Error err = vfs_setattribute(args, attributes);
+    if (err != VFS_OK) printg("setattr: %s", vfs_strerror(err));
 }
 
 static void cmd_mkdir(char* args, bool is_elevated) {
@@ -1028,6 +1063,7 @@ static void sshutdown(char* args, bool is_elevated) {
 
 void run_shell() {
     set_user("user");
+    vfs_set_current_user(false);
 
     char buf[MAX_CMD_LEN];
 

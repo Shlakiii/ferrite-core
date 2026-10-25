@@ -188,7 +188,7 @@ void DFS_Fat16::free_cluster_chain(uint16_t cluster) {
     flush_fat();
 }
 
-int DFS_Fat16::alloc_inode(const char* name, uint8_t type, int16_t parent_id, uint16_t first_cluster, uint32_t size, uint32_t dir_lba, uint32_t dir_entry_idx) {
+int DFS_Fat16::alloc_inode(const char* name, uint8_t type, int16_t parent_id, uint16_t first_cluster, uint32_t size, uint32_t dir_lba, uint32_t dir_entry_idx, uint8_t attributes) {
     if (inode_count_ >= DFAT_INODE_COUNT) return -1;
     int id = inode_count_++;
     DFatInode& n = inodes_[id];
@@ -196,6 +196,7 @@ int DFS_Fat16::alloc_inode(const char* name, uint8_t type, int16_t parent_id, ui
     strncpy(n.name, name, FS_MAX_NAME_LEN - 1);
     n.name[FS_MAX_NAME_LEN - 1] = '\0';
     n.type          = type;
+    n.attributes    = attributes;
     n.parent_id     = parent_id;
     n.first_cluster = first_cluster;
     n.size          = size;
@@ -270,7 +271,7 @@ FS_Error DFS_Fat16::scan_dir(int parent_id, uint16_t first_cluster) {
                 uint8_t  type  = (attr & FAT_ATTR_DIRECTORY) ? ENT_DIR : ENT_FILE;
                 uint16_t clust = le16r(de + 26);
                 uint32_t fsz   = le32r(de + 28);
-                alloc_inode(name83, type, (int16_t)parent_id, clust, fsz, lba, e);
+                alloc_inode(name83, type, (int16_t)parent_id, clust, fsz, lba, e, attr);
             }
             entries_left -= n;
         }
@@ -299,7 +300,7 @@ FS_Error DFS_Fat16::scan_dir(int parent_id, uint16_t first_cluster) {
                     uint8_t  type  = (attr & FAT_ATTR_DIRECTORY) ? ENT_DIR : ENT_FILE;
                     uint16_t clust = le16r(de + 26);
                     uint32_t fsz   = le32r(de + 28);
-                    alloc_inode(name83, type, (int16_t)parent_id, clust, fsz, slba, e);
+                    alloc_inode(name83, type, (int16_t)parent_id, clust, fsz, slba, e, attr);
                 }
             }
             cluster = fat_entry(cluster);
@@ -329,6 +330,9 @@ FS_ListResult DFS_Fat16::list(int parent_id) {
         e.name[FS_MAX_NAME_LEN - 1] = '\0';
         e.size = inodes_[i].size;
         e.type = inodes_[i].type;
+        e.attributes = 0;
+        if (inodes_[i].attributes & FAT_ATTR_SYSTEM) e.attributes |= VFS_ATTR_SYSTEM;
+        if (inodes_[i].attributes & FAT_ATTR_HIDDEN) e.attributes |= VFS_ATTR_HIDDEN;
         r.count++;
     }
     return r;
@@ -349,6 +353,26 @@ int      DFS_Fat16::get_parent(int id) { return (id < 0 || id >= inode_count_) ?
 const char* DFS_Fat16::get_name(int id) { return (id < 0 || id >= inode_count_) ? "" : inodes_[id].name; }
 uint8_t  DFS_Fat16::get_type(int id)   { return (id < 0 || id >= inode_count_) ? ENT_NONE : inodes_[id].type; }
 uint32_t DFS_Fat16::get_size(int id)   { return (id < 0 || id >= inode_count_) ? 0 : inodes_[id].size; }
+uint8_t DFS_Fat16::get_attributes(int id) const {
+    if (id < 0 || id >= inode_count_) return 0;
+    uint8_t attributes = 0;
+    if (inodes_[id].attributes & FAT_ATTR_SYSTEM) attributes |= VFS_ATTR_SYSTEM;
+    if (inodes_[id].attributes & FAT_ATTR_HIDDEN) attributes |= VFS_ATTR_HIDDEN;
+    return attributes;
+}
+
+FS_Error DFS_Fat16::set_attributes(int id, uint8_t attributes) {
+    if (id < 0 || id >= inode_count_ || inodes_[id].type == ENT_NONE)
+        return FS_ERR_NOT_FOUND;
+    DFatInode& node = inodes_[id];
+    uint8_t old_attributes = node.attributes;
+    node.attributes &= (uint8_t)~(FAT_ATTR_SYSTEM | FAT_ATTR_HIDDEN);
+    if (attributes & VFS_ATTR_SYSTEM) node.attributes |= FAT_ATTR_SYSTEM;
+    if (attributes & VFS_ATTR_HIDDEN) node.attributes |= FAT_ATTR_HIDDEN;
+    if (write_dir_entry(id)) return FS_OK;
+    node.attributes = old_attributes;
+    return FS_ERR_IO;
+}
 
 bool DFS_Fat16::write_dir_entry(int id) {
     if (id < 0 || id >= inode_count_) return false;
@@ -358,6 +382,7 @@ bool DFS_Fat16::write_dir_entry(int id) {
 
     uint8_t* de = sector_buf_ + n.dir_entry_idx * 32;
 
+    de[11] = n.attributes;
     le16w(de + 26, n.first_cluster);
     le32w(de + 28, n.size);
 
@@ -474,7 +499,8 @@ FS_Error DFS_Fat16::create(const char* name, uint8_t type, int parent_id) {
                     if (!disk_->write_sectors(lba, sector_buf_, 1))
                         return FS_ERR_IO;
 
-                    int new_id = alloc_inode(name, type, (int16_t)parent_id, 0, 0, lba, e);
+                    int new_id = alloc_inode(name, type, (int16_t)parent_id, 0, 0, lba, e,
+                                             (type == ENT_DIR) ? FAT_ATTR_DIRECTORY : FAT_ATTR_ARCHIVE);
                     if (new_id < 0) return FS_ERR_NO_SPACE;
                     return FS_OK;
                 }
@@ -503,7 +529,8 @@ FS_Error DFS_Fat16::create(const char* name, uint8_t type, int parent_id) {
                             return FS_ERR_IO;
 
                         int new_id = alloc_inode(name, type, (int16_t)parent_id,
-                                                 0, 0, slba, e);
+                                                 0, 0, slba, e,
+                                                 (type == ENT_DIR) ? FAT_ATTR_DIRECTORY : FAT_ATTR_ARCHIVE);
                         if (new_id < 0) return FS_ERR_NO_SPACE;
                         return FS_OK;
                     }

@@ -33,6 +33,7 @@ static int g_driver_count = 0;
 static int  g_cwd_mount = -1;
 static int  g_cwd_id    = -1;
 static char g_cwd_abs[VFS_MAX_PATH] = { '/', '\0' };
+static bool g_vfs_is_root = true;
 
 static int path_copy(char* dst, const char* src, int max) {
     int i = 0;
@@ -177,6 +178,22 @@ static inline VFS_FSInstance* rr_inst(ResolveResult& r) {
     return &g_mounts[m].inst;
 }
 
+static uint8_t get_attributes(VFS_FSInstance* inst, int node_id) {
+    if (!inst || !inst->driver || node_id < 0 || !inst->driver->fs_get_attributes)
+        return 0;
+    return inst->driver->fs_get_attributes(inst, node_id);
+}
+
+static VFS_Error set_attributes(VFS_FSInstance* inst, int node_id, uint8_t attributes) {
+    if (!inst || !inst->driver || node_id < 0 || !inst->driver->fs_set_attributes)
+        return VFS_ERR_NOT_IMPL;
+    return inst->driver->fs_set_attributes(inst, node_id, attributes);
+}
+
+static bool system_node_denied(VFS_FSInstance* inst, int node_id) {
+    return !g_vfs_is_root && (get_attributes(inst, node_id) & VFS_ATTR_SYSTEM);
+}
+
 static ResolveResult vfs_resolve_in(int midx, int start_id, const char* rel_path) {
     ResolveResult r; r.found = true;
 
@@ -285,6 +302,13 @@ static ParentResult vfs_resolve_parent(const char* path) {
     return pr;
 }
 
+static bool system_parent_denied(const char* path) {
+    ParentResult pr = vfs_resolve_parent(path);
+    if (!pr.ok) return false;
+    VFS_FSInstance* inst = inst_for(pr.mount_idx, pr.parent_id);
+    return system_node_denied(inst, pr.parent_id);
+}
+
 VFS_Error vfs_init(const char* fs_name, void* addr, size_t size, IDiskIO* disk, uint32_t lba_start) {
     log(3, "VFS: Initialized...");
 
@@ -292,6 +316,7 @@ VFS_Error vfs_init(const char* fs_name, void* addr, size_t size, IDiskIO* disk, 
     for (int i = 0; i < VFS_MAX_FD;     i++) g_fds[i].open   = false;
     g_cwd_mount = -1;
     g_cwd_id    = -1;
+    g_vfs_is_root = true;
     g_cwd_abs[0] = '/'; g_cwd_abs[1] = '\0';
 
     VFS_Error err = vfs_mount("/", fs_name, addr, size, disk, lba_start, nullptr);
@@ -314,6 +339,7 @@ extern "C" void vfs_force_init(void) {
 
     g_cwd_mount = -1;
     g_cwd_id    = -1;
+    g_vfs_is_root = true;
     g_cwd_abs[0] = '/'; g_cwd_abs[1] = '\0';
 }
 
@@ -443,8 +469,13 @@ int vfs_open(const char* path, int flags) {
         if (t != VFS_ENT_FILE) return -(int)VFS_ERR_NOT_FILE;
     }
 
+    if (((flags & 0x03) != VFS_O_RDONLY || (flags & VFS_O_TRUNC)) &&
+        system_node_denied(inst, r.node_id))
+        return -(int)VFS_ERR_PERM;
+
     if ((flags & VFS_O_TRUNC) && r.node_id != -1) {
-        inst->driver->fs_write(inst, r.node_id, "", 0);
+        VFS_Error err = inst->driver->fs_write(inst, r.node_id, "", 0);
+        if (err != VFS_OK) return -(int)err;
     }
 
     int fd = alloc_fd();
@@ -504,6 +535,7 @@ int vfs_write(int fd, const void* buf, uint32_t size) {
 
     FileDesc& f = g_fds[fd];
     VFS_FSInstance* inst = &g_mounts[f.mount_idx].inst;
+    if (system_node_denied(inst, f.node_id)) return -(int)VFS_ERR_PERM;
 
     VFS_Error err = inst->driver->fs_write(inst, f.node_id, buf, size);
     if (err != VFS_OK) return -(int)err;
@@ -540,6 +572,7 @@ VFS_Error vfs_stat(int fd, VFS_Stat* out) {
     out->name[VFS_MAX_NAME - 1] = '\0';
     out->size = inst->driver->fs_size(inst, f.node_id);
     out->type = inst->driver->fs_type(inst, f.node_id);
+    out->attributes = get_attributes(inst, f.node_id);
     return VFS_OK;
 }
 
@@ -550,7 +583,63 @@ VFS_Error vfs_creat(const char* path, uint8_t type) {
     if (!pr.ok) return VFS_ERR_NOT_FOUND;
 
     VFS_FSInstance* inst = inst_for(pr.mount_idx, pr.parent_id);
+    if (system_node_denied(inst, pr.parent_id)) return VFS_ERR_PERM;
     return inst->driver->fs_create(inst, pr.name, type, pr.parent_id);
+}
+
+static bool is_attr_space(char c) {
+    return c == ' ' || c == '\t' || c == '\r' || c == '\n';
+}
+
+VFS_Error vfs_setattribute(const char* path, const char* attributes) {
+    if (!path || !*path || !attributes) return VFS_ERR_BAD_ARG;
+
+    uint8_t set_mask = 0;
+    uint8_t clear_mask = 0;
+    const char* p = attributes;
+    while (*p) {
+        while (is_attr_space(*p)) p++;
+        if (!*p) break;
+        char operation = *p++;
+        if (operation != '-' && operation != '+') return VFS_ERR_BAD_ARG;
+
+        const char* name = p;
+        while (*p && !is_attr_space(*p)) p++;
+        int length = (int)(p - name);
+        uint8_t bit;
+        if (length == 3 && name[0] == 's' && name[1] == 'y' && name[2] == 's')
+            bit = VFS_ATTR_SYSTEM;
+        else if (length == 4 && name[0] == 'h' && name[1] == 'i' &&
+                 name[2] == 'd' && name[3] == 'e')
+            bit = VFS_ATTR_HIDDEN;
+        else
+            return VFS_ERR_BAD_ARG;
+
+        if (operation == '-') {
+            set_mask |= bit;
+            clear_mask &= (uint8_t)~bit;
+        } else {
+            clear_mask |= bit;
+            set_mask &= (uint8_t)~bit;
+        }
+    }
+
+    ResolveResult r = vfs_resolve(path);
+    if (!r.found) return VFS_ERR_NOT_FOUND;
+
+    VFS_FSInstance* inst = rr_inst(r);
+    if (r.node_id < 0) return VFS_ERR_PERM;
+    uint8_t type = inst->driver->fs_type(inst, r.node_id);
+    if (type != VFS_ENT_FILE && type != VFS_ENT_DIR) return VFS_ERR_NOT_FILE;
+    if (system_node_denied(inst, r.node_id) || system_parent_denied(path))
+        return VFS_ERR_PERM;
+    if ((set_mask | clear_mask) & VFS_ATTR_SYSTEM)
+        if (!g_vfs_is_root) return VFS_ERR_PERM;
+
+    if (set_mask == 0 && clear_mask == 0) return VFS_OK;
+    uint8_t current = get_attributes(inst, r.node_id);
+    uint8_t updated = (uint8_t)((current | set_mask) & (uint8_t)~clear_mask);
+    return set_attributes(inst, r.node_id, updated);
 }
 
 VFS_Error vfs_mkdir(const char* path) {
@@ -565,6 +654,8 @@ VFS_Error vfs_unlink(const char* path) {
     VFS_FSInstance* inst = rr_inst(r);
     uint8_t t = (r.node_id == -1) ? VFS_ENT_DIR : inst->driver->fs_type(inst, r.node_id);
     if (t == VFS_ENT_DIR) return VFS_ERR_NOT_FILE;
+    if (system_node_denied(inst, r.node_id) || system_parent_denied(path))
+        return VFS_ERR_PERM;
 
     return inst->driver->fs_remove(inst, r.node_id);
 }
@@ -585,6 +676,8 @@ VFS_Error vfs_rmdir(const char* path) {
     VFS_FSInstance* inst = rr_inst(r);
     uint8_t t = (r.node_id == -1) ? VFS_ENT_DIR : inst->driver->fs_type(inst, r.node_id);
     if (t != VFS_ENT_DIR) return VFS_ERR_NOT_DIR;
+    if (system_node_denied(inst, r.node_id) || system_parent_denied(path))
+        return VFS_ERR_PERM;
 
     VFS_Dir d = inst->driver->fs_readdir(inst, r.node_id);
     if (d.count > 0) return VFS_ERR_NOT_EMPTY;
@@ -618,6 +711,7 @@ VFS_Error vfs_write_file(const char* path, const void* buf, uint32_t size) {
     if (!r.found) return VFS_ERR_NOT_FOUND;
 
     VFS_FSInstance* inst = rr_inst(r);
+    if (system_node_denied(inst, r.node_id)) return VFS_ERR_PERM;
     return inst->driver->fs_write(inst, r.node_id, buf, size);
 }
 
@@ -631,12 +725,14 @@ VFS_Error vfs_stat_path(const char* path, VFS_Stat* out) {
         out->name[0] = '/'; out->name[1] = '\0';
         out->size = 0;
         out->type = VFS_ENT_DIR;
+        out->attributes = 0;
     } else {
         const char* n = inst->driver->fs_name(inst, r.node_id);
         strncpy(out->name, n ? n : "", VFS_MAX_NAME - 1);
         out->name[VFS_MAX_NAME - 1] = '\0';
         out->size = inst->driver->fs_size(inst, r.node_id);
         out->type = inst->driver->fs_type(inst, r.node_id);
+        out->attributes = get_attributes(inst, r.node_id);
     }
     return VFS_OK;
 }
@@ -654,6 +750,14 @@ VFS_Dir vfs_readdir(const char* path) {
     if (t != VFS_ENT_DIR) { d.error = VFS_ERR_NOT_DIR; return d; }
 
     VFS_Dir raw = inst->driver->fs_readdir(inst, r.node_id);
+
+    int visible_count = 0;
+    for (int i = 0; i < raw.count; i++) {
+        if (raw.entries[i].attributes & VFS_ATTR_HIDDEN) continue;
+        if (visible_count != i) raw.entries[visible_count] = raw.entries[i];
+        visible_count++;
+    }
+    raw.count = visible_count;
 
     char dir_abs[VFS_MAX_PATH];
     path_absolute(path, dir_abs, VFS_MAX_PATH);
@@ -680,6 +784,7 @@ VFS_Dir vfs_readdir(const char* path) {
             raw.entries[raw.count].name[VFS_MAX_NAME - 1] = '\0';
             raw.entries[raw.count].size = 0;
             raw.entries[raw.count].type = VFS_ENT_DIR;
+            raw.entries[raw.count].attributes = 0;
             raw.count++;
         }
     }
@@ -714,6 +819,10 @@ void vfs_pwd() {
 
 const char* vfs_getcwd() {
     return g_cwd_abs;
+}
+
+void vfs_set_current_user(bool is_root) {
+    g_vfs_is_root = is_root;
 }
 
 void vfs_dump_mounts() {

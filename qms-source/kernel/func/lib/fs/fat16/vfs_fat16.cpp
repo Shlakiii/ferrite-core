@@ -261,6 +261,7 @@ static VFS_Dir fat16_readdir_impl(VFS_FSInstance* inst, int dir_id) {
         d.entries[d.count].name[VFS_MAX_NAME - 1] = '\0';
         d.entries[d.count].size = lr.entries[i].size;
         d.entries[d.count].type = is_dir ? VFS_ENT_DIR : VFS_ENT_FILE;
+        d.entries[d.count].attributes = lr.entries[i].attributes;
         d.count++;
     }
 
@@ -468,6 +469,20 @@ static VFS_Error fat16_remove_impl(VFS_FSInstance* inst, int id) {
     return VFS_OK;
 }
 
+static uint8_t fat16_get_attributes_impl(VFS_FSInstance* inst, int id) {
+    Fat16Private* priv = (Fat16Private*)inst->priv;
+    if (!priv || !priv->mounted) return 0;
+    return priv->fs->get_attributes(id);
+}
+
+static VFS_Error fat16_set_attributes_impl(VFS_FSInstance* inst, int id, uint8_t attributes) {
+    Fat16Private* priv = (Fat16Private*)inst->priv;
+    if (!priv || !priv->mounted) return VFS_ERR_NO_FS;
+    FS_Error err = priv->fs->set_attributes(id, attributes);
+    if (err == FS_OK) return VFS_OK;
+    return (err == FS_ERR_IO) ? VFS_ERR_IO : VFS_ERR_NOT_FOUND;
+}
+
 static const VFS_FSDriver fat16_driver = {
     "fat16",
     fat16_mount_impl,
@@ -481,7 +496,9 @@ static const VFS_FSDriver fat16_driver = {
     fat16_create_impl,
     fat16_remove_impl,
     fat16_read_impl,
-    fat16_write_impl
+    fat16_write_impl,
+    fat16_get_attributes_impl,
+    fat16_set_attributes_impl
 };
 
 extern "C" VFS_Error vfs_fat16_register(void) {

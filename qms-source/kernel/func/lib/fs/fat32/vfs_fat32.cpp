@@ -181,6 +181,9 @@ static VFS_Dir fat32_readdir_impl(VFS_FSInstance* inst, int dir_id) {
         d.entries[d.count].name[VFS_MAX_NAME - 1] = '\0';
         d.entries[d.count].size = ffile.size;
         d.entries[d.count].type = (ffile.attr & FAT32_ATTR_DIRECTORY) ? VFS_ENT_DIR : VFS_ENT_FILE;
+        d.entries[d.count].attributes = 0;
+        if (ffile.attr & FAT32_ATTR_SYSTEM) d.entries[d.count].attributes |= VFS_ATTR_SYSTEM;
+        if (ffile.attr & FAT32_ATTR_HIDDEN) d.entries[d.count].attributes |= VFS_ATTR_HIDDEN;
         d.count++;
     }
 
@@ -334,6 +337,36 @@ static VFS_Error fat32_remove_impl(VFS_FSInstance* inst, int id) {
     return (ret == 0) ? VFS_OK : VFS_ERR_IO;
 }
 
+static uint8_t fat32_get_attributes_impl(VFS_FSInstance* inst, int id) {
+    Fat32Private* priv = (Fat32Private*)inst->priv;
+    if (!priv || !priv->mounted || id < 0 || id >= FAT32_MAX_NODES ||
+        !priv->nodes[id].used)
+        return 0;
+
+    uint8_t raw = 0;
+    if (fat32_get_entry_attributes(&priv->fs, priv->nodes[id].path, &raw) != 0)
+        return VFS_ATTR_SYSTEM | VFS_ATTR_HIDDEN;
+
+    uint8_t attributes = 0;
+    if (raw & FAT32_ATTR_SYSTEM) attributes |= VFS_ATTR_SYSTEM;
+    if (raw & FAT32_ATTR_HIDDEN) attributes |= VFS_ATTR_HIDDEN;
+    return attributes;
+}
+
+static VFS_Error fat32_set_attributes_impl(VFS_FSInstance* inst, int id, uint8_t attributes) {
+    Fat32Private* priv = (Fat32Private*)inst->priv;
+    if (!priv || !priv->mounted) return VFS_ERR_NO_FS;
+    if (id < 0 || id >= FAT32_MAX_NODES || !priv->nodes[id].used)
+        return VFS_ERR_NOT_FOUND;
+
+    uint8_t values = 0;
+    if (attributes & VFS_ATTR_SYSTEM) values |= FAT32_ATTR_SYSTEM;
+    if (attributes & VFS_ATTR_HIDDEN) values |= FAT32_ATTR_HIDDEN;
+    uint8_t mask = FAT32_ATTR_SYSTEM | FAT32_ATTR_HIDDEN;
+    return (fat32_set_entry_attributes(&priv->fs, priv->nodes[id].path, mask, values) == 0)
+        ? VFS_OK : VFS_ERR_IO;
+}
+
 static const VFS_FSDriver fat32_driver = {
     "fat32",
     fat32_mount_impl,
@@ -347,7 +380,9 @@ static const VFS_FSDriver fat32_driver = {
     fat32_create_impl,
     fat32_remove_impl,
     fat32_read_impl,
-    fat32_write_impl
+    fat32_write_impl,
+    fat32_get_attributes_impl,
+    fat32_set_attributes_impl
 };
 
 extern "C" VFS_Error vfs_fat32_register(void) {

@@ -229,6 +229,7 @@ static VFS_Dir qfs_readdir_impl(VFS_FSInstance* inst, int dir_id) {
         strncpy(e->name, in->name, VFS_MAX_NAME - 1);
         e->name[VFS_MAX_NAME - 1] = '\0';
         e->size = in->size; e->type = in->type;
+        e->attributes = in->_res & (VFS_ATTR_SYSTEM | VFS_ATTR_HIDDEN);
     }
     return d;
 }
@@ -339,6 +340,20 @@ static VFS_Error qfs_write_impl(VFS_FSInstance* inst, int id, const void* buf, u
     in->size = size; return VFS_OK;
 }
 
+static uint8_t qfs_get_attributes_impl(VFS_FSInstance* inst, int id) {
+    QfsCtx* ctx = (QfsCtx*)inst->priv;
+    if (id < 0 || id >= ctx->inode_count || !ctx->inodes[id].used) return 0;
+    return ctx->inodes[id]._res & (VFS_ATTR_SYSTEM | VFS_ATTR_HIDDEN);
+}
+
+static VFS_Error qfs_set_attributes_impl(VFS_FSInstance* inst, int id, uint8_t attributes) {
+    QfsCtx* ctx = (QfsCtx*)inst->priv;
+    if (id < 0 || id >= ctx->inode_count) return VFS_ERR_BAD_ARG;
+    if (!ctx->inodes[id].used) return VFS_ERR_NOT_FOUND;
+    ctx->inodes[id]._res = attributes & (VFS_ATTR_SYSTEM | VFS_ATTR_HIDDEN);
+    return VFS_OK;
+}
+
 static const VFS_FSDriver qfs_driver = {
     "qfs",
     qfs_mount_impl,  qfs_unmount_impl,
@@ -346,6 +361,7 @@ static const VFS_FSDriver qfs_driver = {
     qfs_name_impl,   qfs_type_impl,   qfs_size_impl,
     qfs_create_impl, qfs_remove_impl,
     qfs_read_impl,   qfs_write_impl,
+    qfs_get_attributes_impl, qfs_set_attributes_impl,
 };
 
 extern "C" VFS_Error vfs_qfs_register(void) {

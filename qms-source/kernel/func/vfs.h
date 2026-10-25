@@ -16,6 +16,9 @@
 #define VFS_ENT_FILE    1
 #define VFS_ENT_DIR     2
 
+#define VFS_ATTR_SYSTEM 0x01
+#define VFS_ATTR_HIDDEN 0x02
+
 #define VFS_O_RDONLY    0x00
 #define VFS_O_WRONLY    0x01
 #define VFS_O_RDWR      0x02
@@ -57,12 +60,14 @@ typedef struct VFS_Stat {
     char     name[VFS_MAX_NAME];
     uint32_t size;
     uint8_t  type;
+    uint8_t  attributes;
 } VFS_Stat;
 
 typedef struct VFS_DirEntry {
     char     name[VFS_MAX_NAME];
     uint32_t size;
     uint8_t  type;
+    uint8_t  attributes;
 } VFS_DirEntry;
 
 typedef struct VFS_Dir {
@@ -102,6 +107,8 @@ struct VFS_FSDriver {
     VFS_Error (*fs_remove)(struct VFS_FSInstance* inst, int id);
     VFS_Error (*fs_read)(struct VFS_FSInstance* inst, int id, void* buf, uint32_t* inout_size);
     VFS_Error (*fs_write)(struct VFS_FSInstance* inst, int id, const void* buf, uint32_t size);
+    uint8_t   (*fs_get_attributes)(struct VFS_FSInstance* inst, int id);
+    VFS_Error (*fs_set_attributes)(struct VFS_FSInstance* inst, int id, uint8_t attributes);
 };
 
 #ifdef __cplusplus
@@ -144,6 +151,7 @@ VFS_Error vfs_stat (int fd, struct VFS_Stat* out);
 #define VFS_SEEK_END 2
 
 VFS_Error vfs_creat  (const char* path, uint8_t type);
+VFS_Error vfs_setattribute(const char* path, const char* attributes);
 VFS_Error vfs_unlink (const char* path);
 VFS_Error vfs_mkdir  (const char* path);
 VFS_Error vfs_rmdir  (const char* path);
@@ -163,6 +171,7 @@ const char* vfs_strerror(VFS_Error err);
 
 void vfs_force_init(void);
 void vfs_dump_mounts();
+void vfs_set_current_user(bool is_root);
 
 #ifdef __cplusplus
 }

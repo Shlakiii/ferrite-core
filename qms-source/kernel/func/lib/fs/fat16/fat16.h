@@ -41,6 +41,7 @@ struct FS_DirEntry {
     char     name[FS_MAX_NAME_LEN];
     uint32_t size;
     uint8_t  type;
+    uint8_t  attributes;
 };
 
 struct FS_ListResult {
@@ -73,6 +74,7 @@ struct DFatInode {
     char     name[FS_MAX_NAME_LEN];
     uint32_t size;
     uint8_t  type;
+    uint8_t  attributes;
     int16_t  parent_id;
     uint16_t first_cluster;
     bool     populated;
@@ -93,6 +95,8 @@ public:
     const char*   get_name  (int id)                     override;
     uint8_t       get_type  (int id)                     override;
     uint32_t      get_size  (int id)                     override;
+    uint8_t       get_attributes(int id) const;
+    FS_Error      set_attributes(int id, uint8_t attributes);
 
     FS_Error      create(const char* name, uint8_t type, int parent_id) override;
     FS_Error      remove(int id)                                 override;
@@ -135,7 +139,7 @@ private:
     uint16_t alloc_cluster();
     void     free_cluster_chain(uint16_t cluster);
 
-    int  alloc_inode(const char* name, uint8_t type, int16_t parent_id, uint16_t first_cluster, uint32_t size, uint32_t dir_lba, uint32_t dir_entry_idx);
+    int  alloc_inode(const char* name, uint8_t type, int16_t parent_id, uint16_t first_cluster, uint32_t size, uint32_t dir_lba, uint32_t dir_entry_idx, uint8_t attributes = 0);
 
     FS_Error scan_dir        (int parent_id, uint16_t first_cluster);
     FS_Error ensure_populated(int parent_id);

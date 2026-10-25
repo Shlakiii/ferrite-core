@@ -64,7 +64,9 @@ void ferrc_setup()
     find_or_create_dir(EMU_A0 "/ferrc/lua");
     find_or_create_dir(EMU_A0 "/ferrc/.config");
     find_or_create_file(EMU_A0 "/ferrc/.config/video.conf");
+    vfs_setattribute("/emulated/0/ferrc", "+sys");
 
     //end
     vfs_cd("/");
+
 }
