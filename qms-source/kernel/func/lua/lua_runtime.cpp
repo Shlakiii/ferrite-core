@@ -4,6 +4,7 @@
 #include <func/lib/math/math.h>
 #include <func/lua/lua_easy.h>
 #include <func/io/serial.h>
+#include <func/lib/metad.h>
 
 extern "C" {
 #include <luajit/src/lua.h>
@@ -85,6 +86,16 @@ static int lua_serial_new_line_manual(lua_State*){
     return 0;
 }
 
+static int lua_kernel_ver_get(lua_State* state){
+    lua_pushstring(state, FERR_VER);
+    return 1;
+}
+
+static int lua_qms_kernel_ver_get(lua_State* state){
+    lua_pushstring(state, CORE_VER);
+    return 1;
+}
+
 struct LuaSource {
     const char* text;
     bool returned;
@@ -121,6 +132,7 @@ void lua_run_luac(char* source_code) {
     insert_cclosure_func(LS, &lua_kernel_print, "print");
     // функция clear
     insert_cclosure_func(LS, &lua_kernel_func_clear, "clear");
+
     // таблица serial
     lua_newtable(LS);
     // функция serial.println
@@ -131,6 +143,17 @@ void lua_run_luac(char* source_code) {
     lua_setfield(LS, -2, "newline_m");
     // устaновка таблицы serial
     lua_setglobal(LS, "serial");
+
+    // таблица kernel
+    lua_newtable(LS);
+    // функция kernel.version
+    lua_pushcfunction(LS, lua_kernel_ver_get);
+    lua_setfield(LS,-2,"version");
+    // функция kernel.qms_ver
+    lua_pushcfunction(LS, lua_qms_kernel_ver_get);
+    lua_setfield(LS,-2,"qms_ver");
+    // установка таблицы kernel
+    lua_setglobal(LS, "kernel");
 
     LuaSource source = {source_code, false};
     int status = lua_load(LS, lua_source_reader, &source, "=boot.lua");
