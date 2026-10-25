@@ -2,6 +2,8 @@
 #include <func/lua/lua_runtime.h>
 #include <func/io/printg.h>
 #include <func/lib/math/math.h>
+#include <func/lua/lua_easy.h>
+#include <func/io/serial.h>
 
 extern "C" {
 #include <luajit/src/lua.h>
@@ -22,26 +24,26 @@ extern "C" [[noreturn]] void exit(int status) {
 
 static double lua_math_unavailable(const char* name) {
     printg("LuaJIT math function unavailable: %s", name);
-    lua_runtime_halt("LuaJIT math is not enabled in the kernel");
+    return 0.0;
 }
 
-//extern "C" double ldexp(double, int) { return lua_math_unavailable("ldexp"); }
-//extern "C" double pow(double, double) { return lua_math_unavailable("pow"); }
-//extern "C" double fabs(double) { return lua_math_unavailable("fabs"); }
-//extern "C" double log2(double) { return lua_math_unavailable("log2"); }
-//extern "C" double log10(double) { return lua_math_unavailable("log10"); }
-//extern "C" double exp(double) { return lua_math_unavailable("exp"); }
-//extern "C" double sin(double) { return lua_math_unavailable("sin"); }
-//extern "C" double cos(double) { return lua_math_unavailable("cos"); }
-//extern "C" double tan(double) { return lua_math_unavailable("tan"); }
-//extern "C" double asin(double) { return lua_math_unavailable("asin"); }
-//extern "C" double acos(double) { return lua_math_unavailable("acos"); }
-//extern "C" double atan(double) { return lua_math_unavailable("atan"); }
-//extern "C" double sinh(double) { return lua_math_unavailable("sinh"); }
-//extern "C" double cosh(double) { return lua_math_unavailable("cosh"); }
-//extern "C" double tanh(double) { return lua_math_unavailable("tanh"); }
-//extern "C" double atan2(double, double) { return lua_math_unavailable("atan2"); }
-extern "C" double fmod(double xx, double yy) { return fmodd(xx,yy); }
+extern "C" double ldexp(double, int) { lua_math_unavailable("ldexp"); }
+extern "C" double pow(double, double) { lua_math_unavailable("pow"); }
+extern "C" double fabs(double value) { return value < 0.0 ? -value : value; }
+extern "C" double log2(double) { lua_math_unavailable("log2"); }
+extern "C" double log10(double) { lua_math_unavailable("log10"); }
+extern "C" double exp(double) { lua_math_unavailable("exp"); }
+extern "C" double sin(double) { lua_math_unavailable("sin"); }
+extern "C" double cos(double) { lua_math_unavailable("cos"); }
+extern "C" double tan(double) { lua_math_unavailable("tan"); }
+extern "C" double asin(double) { lua_math_unavailable("asin"); }
+extern "C" double acos(double) { lua_math_unavailable("acos"); }
+extern "C" double atan(double value) { return atan2d(value, 1.0); }
+extern "C" double sinh(double) { lua_math_unavailable("sinh"); }
+extern "C" double cosh(double) { lua_math_unavailable("cosh"); }
+extern "C" double tanh(double) { lua_math_unavailable("tanh"); }
+extern "C" double atan2(double y, double x) { return atan2d(y, x); }
+extern "C" double fmod(double x, double y) { return fmodd(x, y); }
 
 static void* lua_kernel_alloc(void* ud, void* ptr, size_t, size_t new_size) {
     MemoryManager* mem  = (MemoryManager*)ud;
@@ -61,9 +63,20 @@ static int lua_kernel_print(lua_State* state) {
     return 0;
 }
 
+static int lua_kernel_func_clear(lua_State*) {
+    clear_screen();
+    return 0;
+}
+
 static int lua_kernel_panic(lua_State* state) {
     const char* message = lua_tolstring(state, -1, nullptr);
     printg("Lua panic: %s", message ? message : "unknown error");
+    return 0;
+}
+
+static int serial_println_serial(lua_State* state) {
+    const char* text = lua_tolstring(state, 1, nullptr);
+    serial_println(text);
     return 0;
 }
 
@@ -95,11 +108,21 @@ void lua_run_luac(char* source_code) {
     }
 
     luaopen_base(LS);
-    //luaopen_math(LS);
+    luaopen_math(LS);
 
     lua_atpanic(LS, lua_kernel_panic);
-    lua_pushcfunction(LS, lua_kernel_print);
-    lua_setglobal(LS, "print");    
+
+    // функция print
+    insert_cclosure_func(LS, &lua_kernel_print, "print");
+    // функция clear
+    insert_cclosure_func(LS, &lua_kernel_func_clear, "clear");
+    // таблица serial
+    lua_newtable(LS);
+    // функция serial.println
+    lua_pushcfunction(LS, serial_println_serial);
+    lua_setfield(LS, -2, "println");
+    // устaновка таблицы serial
+    lua_setglobal(LS, "serial");
 
     LuaSource source = {source_code, false};
     int status = lua_load(LS, lua_source_reader, &source, "=boot.lua");

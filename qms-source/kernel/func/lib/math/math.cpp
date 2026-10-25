@@ -1,6 +1,7 @@
 #include "math.h"
 #include <lib/strtools/string.h>
 #include <lib/rmem/memory.h>
+#include <stdint.h>
 
 int compare(const char* a, const char* b) {
     bool neg_a = (a[0] == '-'), neg_b = (b[0] == '-');
@@ -150,4 +151,89 @@ double fmodd(double x, double y){
         ax -= d;
     }
     return (x < 0) ? -ax : ax;
+}
+
+static double atan_small(double t){
+    double t2 = t*t;
+    return t * ( 0.9999993329
+        + t2 * (-0.3332985605
+        + t2 * ( 0.1994653599
+        + t2 * (-0.1390853351
+        + t2 * ( 0.0964200441
+        + t2 * (-0.0559098861
+        + t2 * ( 0.0218612288
+        + t2 * (-0.0040540580
+        ))))))));
+}
+
+static bool double_signbit(double value) {
+    union {
+        double value;
+        uint64_t bits;
+    } repr = {value};
+    return (repr.bits >> 63) != 0;
+}
+
+static bool double_is_nan(double value) {
+    union {
+        double value;
+        uint64_t bits;
+    } repr = {value};
+    return (repr.bits & 0x7ff0000000000000ULL) == 0x7ff0000000000000ULL
+        && (repr.bits & 0x000fffffffffffffULL) != 0;
+}
+
+static bool double_is_infinite(double value) {
+    union {
+        double value;
+        uint64_t bits;
+    } repr = {value};
+    return (repr.bits & 0x7fffffffffffffffULL) == 0x7ff0000000000000ULL;
+}
+
+double atan2d(double y, double x) {
+    static const double PI = 3.14159265358979323846;
+    static const double HALF_PI = 1.57079632679489661923;
+    static const double QUARTER_PI = 0.78539816339744830962;
+    static const double THREE_QUARTER_PI = 2.35619449019234492885;
+
+    if (double_is_nan(x) || double_is_nan(y))
+        return x + y;
+
+    const bool y_negative = double_signbit(y);
+    const bool x_negative = double_signbit(x);
+    const bool y_infinite = double_is_infinite(y);
+    const bool x_infinite = double_is_infinite(x);
+
+    if (y_infinite && x_infinite) {
+        double angle = x_negative ? THREE_QUARTER_PI : QUARTER_PI;
+        return y_negative ? -angle : angle;
+    }
+    if (y_infinite)
+        return y_negative ? -HALF_PI : HALF_PI;
+    if (x_infinite) {
+        if (x_negative)
+            return y_negative ? -PI : PI;
+        return y_negative ? -0.0 : 0.0;
+    }
+
+    if (y == 0.0) {
+        if (x_negative)
+            return y_negative ? -PI : PI;
+        return y;
+    }
+    if (x == 0.0)
+        return y_negative ? -HALF_PI : HALF_PI;
+
+    const double abs_y = y_negative ? -y : y;
+    const double abs_x = x_negative ? -x : x;
+    double angle;
+    if (abs_y > abs_x)
+        angle = HALF_PI - atan_small(abs_x / abs_y);
+    else
+        angle = atan_small(abs_y / abs_x);
+
+    if (x_negative)
+        angle = PI - angle;
+    return y_negative ? -angle : angle;
 }
