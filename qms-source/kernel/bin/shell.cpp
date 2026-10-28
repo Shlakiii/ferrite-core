@@ -25,8 +25,12 @@
 
 #include <func/lua/lua_runtime.h>
 
+#include <test/test_prgs.h>
+
 #define HISTORY_SIZE 32
 #define MAX_CMD_LEN  256
+
+#define TEST false
 
 bool shrboot = false;
 bool shsdown = false;
@@ -125,6 +129,7 @@ static void path_join(char* out, size_t out_size, const char* dir, const char* n
 static void sreboot(char* args, bool is_elevated);
 static void sshutdown(char* args, bool is_elevated);
 static void cmd_nukdir(char* args, bool is_elevated);
+static void cmd_callt(char* args, bool is_elevated);
 
 static ShellCommand commands[] = {
     {"help",    cmd_help,    "Show this help"},
@@ -153,6 +158,7 @@ static ShellCommand commands[] = {
     {"mem",     cmd_mem,     "Memory usage"},
     {"sinfo",   cmd_sinfo,   "System information"},
     {"about",   cmd_about,   "About QMS OS"},
+    {"callt",   cmd_callt,   "Call test program <test_code>"},
     {"reboot",  sreboot,     "Reboot system"},
     {"shutdown",sshutdown,   "Shutdown system"},
     {nullptr, nullptr, nullptr}
@@ -393,6 +399,20 @@ static void cmd_cp(char* args, bool is_elevated) {
     err = vfs_write_file(real_dst, buf, sz);
     kernel_mem_manager->free(buf, src_st.size);
     if (err != VFS_OK) printg("cp: write error: %s", vfs_strerror(err));
+}
+
+static void cmd_callt(char* args, bool is_elevated) {
+    if(!TEST)return;
+    
+    printg("Ready");
+    //if(!is_elevated)printg("no right");return;
+    //if(!args || !*args)printg("usage: callt <test_code>");return;
+    if(args){
+        printg("Running");
+        otval_test();
+    }else{
+        printg("Invalid test code");
+    }
 }
 
 static bool mv_file(const char* src, const char* real_dst) {

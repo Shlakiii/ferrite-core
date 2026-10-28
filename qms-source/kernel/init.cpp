@@ -24,6 +24,8 @@
 #include <io/keyboard.h>
 #include <io/fb.h>
 
+#include <test/test_prgs.h>
+
 #include <drivers/hw/ata_pio.h>
 #include <drivers/hw/ata_diskio.h>
 #include <drivers/pci/pci.h>
@@ -91,6 +93,7 @@ void kernel_panic(const char* msg) {
     printgc(15, 4, " KERNEL PANIC ");
     printgc(15, 4, "%s", msg);
     printgc(15, 4, "System halted.");
+    otval_test();
     while (1) { __asm__ __volatile__("hlt"); }
 }
 

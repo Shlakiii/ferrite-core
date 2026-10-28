@@ -43,6 +43,12 @@ void update_cursor_frame();
 void show_banner();
 void show_gbanner(int x, int y);
 
+#ifdef _cplusplus
+void scbanner(int x, int y, uint32_t* pixels, uint32_t width, uint32_t height, int ns=1);
+#else
+void scbanner(int x, int y, uint32_t* pixels, uint32_t width, uint32_t height, int ns);
+#endif
+
 int vsnprintf(char* buf, size_t size, const char* fmt, va_list args);
 int snprintf(char* buf, size_t size, const char* fmt, ...);
 

@@ -493,6 +493,15 @@ void show_gbanner(int x, int y) {
 
     fb_draw_image(cx, cy, logo_width, logo_height, logo_data);
 }
+void scbanner(int x, int y, uint32_t* pixels, uint32_t width, uint32_t height, int ns){
+    printg("\n");
+
+    int cx = x * 8;
+    int cy = (cursor_y -5) * ns;
+    if (cy < 0) cy = 0;
+
+    fb_draw_image(cx, cy, width, height, pixels);
+}
 
 int tscreen_h() {
 	int tsh = u16int(sh);

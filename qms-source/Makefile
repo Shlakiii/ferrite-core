@@ -154,6 +154,8 @@ $(BUILD_DIR)/%.o: $(KSRC)/%.c
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $< -o $@
 
+$(BUILD_DIR)/func/io/printg.o: $(KSRC)/func/io/printg.h
+
 $(BUILD_DIR)/func/lua/luaheap_func_bridge.o: $(KSRC)/func/lua/luaheap_func_bridge.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
