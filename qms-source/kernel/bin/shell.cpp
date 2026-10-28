@@ -146,7 +146,7 @@ static ShellCommand commands[] = {
     {"mv",      cmd_mv,      "Move/rename file: mv <src> <dst>"},
     {"cat",     cmd_cat,     "Display file content"},
     {"run",     cmd_run,     "Run .qex application (-s = as root)"},
-    {"run_lua", cmd_run_lua, "Run Lua script: run_lua <script>"},
+    {"rl",      cmd_run_lua, "Run Lua script: rl <script>"},
     {"su",      cmd_su,      "Switch to root user"},
     {"lsblk",   cmd_lsblk,   "List block devices (ATA drives)"},
     {"mount",   cmd_mount,   "Mount filesystem: mount <disk> <mountpoint>"},
@@ -403,7 +403,7 @@ static void cmd_cp(char* args, bool is_elevated) {
 
 static void cmd_callt(char* args, bool is_elevated) {
     if(!TEST)return;
-    
+
     printg("Ready");
     //if(!is_elevated)printg("no right");return;
     //if(!args || !*args)printg("usage: callt <test_code>");return;

@@ -2,12 +2,16 @@
 #include <func/lua/lua_runtime.h>
 #include <func/io/printg.h>
 #include <func/lib/math/math.h>
+#include <func/lib/strtools/string.h>
 #include <func/lua/lua_easy.h>
 #include <func/io/serial.h>
 #include <func/lib/metad.h>
+#include <bin/shell.h>
+#include "lua_req.h"
 
 extern "C" {
 #include <luajit/src/lua.h>
+#include <luajit/src/lauxlib.h>
 #include <luajit/src/lualib.h>
 }
 
@@ -96,6 +100,156 @@ static int lua_qms_kernel_ver_get(lua_State* state){
     return 1;
 }
 
+struct LuaGlobalValue {
+    LuaGlobalValue* next;
+    char* name;
+    size_t name_length;
+    int type;
+    size_t string_length;
+    union {
+        lua_Number number;
+        int boolean;
+        char* string;
+    } value;
+};
+
+static LuaGlobalValue* lua_global_values;
+
+static LuaGlobalValue* lua_global_find(const char* name, size_t name_length) {
+    for (LuaGlobalValue* entry = lua_global_values; entry; entry = entry->next) {
+        if (entry->name_length == name_length &&
+            memcmp(entry->name, name, name_length) == 0) {
+            return entry;
+        }
+    }
+    return nullptr;
+}
+
+static void lua_global_free_value(LuaGlobalValue* entry) {
+    if (entry->type == LUA_TSTRING) {
+        lua_mem_manager->free(entry->value.string);
+    }
+}
+
+static void lua_global_remove(LuaGlobalValue* entry) {
+    LuaGlobalValue** link = &lua_global_values;
+    while (*link != entry) link = &(*link)->next;
+    *link = entry->next;
+    lua_global_free_value(entry);
+    lua_mem_manager->free(entry->name);
+    lua_mem_manager->free(entry);
+}
+
+static int lua_global_set(lua_State* state) {
+    size_t name_length;
+    const char* name = luaL_checklstring(state, 1, &name_length);
+    LuaGlobalValue* entry = lua_global_find(name, name_length);
+    const int type = lua_type(state, 2);
+
+    if (type == LUA_TNIL) {
+        if (entry && lua_mem_manager) lua_global_remove(entry);
+        return 0;
+    }
+
+    if (type != LUA_TNUMBER && type != LUA_TSTRING && type != LUA_TBOOLEAN) {
+        return luaL_error(state, "glob_set supports only numbers, strings, booleans, and nil");
+    }
+    if (!lua_mem_manager) {
+        return luaL_error(state, "global variable storage is unavailable");
+    }
+
+    char* string_copy = nullptr;
+    size_t string_length = 0;
+    if (type == LUA_TSTRING) {
+        size_t length;
+        const char* string = lua_tolstring(state, 2, &length);
+        if (length == static_cast<size_t>(-1)) {
+            return luaL_error(state, "global string is too large");
+        }
+        string_copy = static_cast<char*>(lua_mem_manager->allocate(length ? length : 1));
+        if (!string_copy) {
+            return luaL_error(state, "unable to allocate global string");
+        }
+        if (length) memcpy(string_copy, string, length);
+        string_length = length;
+    }
+
+    if (!entry) {
+        if (name_length == static_cast<size_t>(-1)) {
+            if (string_copy) lua_mem_manager->free(string_copy);
+            return luaL_error(state, "global variable name is too large");
+        }
+        entry = static_cast<LuaGlobalValue*>(lua_mem_manager->allocate(sizeof(LuaGlobalValue)));
+        char* name_copy = static_cast<char*>(lua_mem_manager->allocate(name_length + 1));
+        if (!entry || !name_copy) {
+            if (entry) lua_mem_manager->free(entry);
+            if (name_copy) lua_mem_manager->free(name_copy);
+            if (string_copy) lua_mem_manager->free(string_copy);
+            return luaL_error(state, "unable to allocate global variable");
+        }
+        memcpy(name_copy, name, name_length);
+        name_copy[name_length] = '\0';
+        entry->name = name_copy;
+        entry->name_length = name_length;
+        entry->next = lua_global_values;
+        lua_global_values = entry;
+    } else {
+        lua_global_free_value(entry);
+    }
+
+    entry->type = type;
+    entry->string_length = string_length;
+    if (type == LUA_TNUMBER) {
+        entry->value.number = lua_tonumber(state, 2);
+    } else if (type == LUA_TBOOLEAN) {
+        entry->value.boolean = lua_toboolean(state, 2);
+    } else {
+        entry->value.string = string_copy;
+    }
+    return 0;
+}
+
+static int lua_global_get(lua_State* state) {
+    size_t name_length;
+    const char* name = luaL_checklstring(state, 1, &name_length);
+    LuaGlobalValue* entry = lua_global_find(name, name_length);
+    if (!entry) {
+        lua_pushnil(state);
+    } else if (entry->type == LUA_TNUMBER) {
+        lua_pushnumber(state, entry->value.number);
+    } else if (entry->type == LUA_TBOOLEAN) {
+        lua_pushboolean(state, entry->value.boolean);
+    } else {
+        lua_pushlstring(state, entry->value.string, entry->string_length);
+    }
+    return 1;
+}
+
+static int lua_global_free(lua_State* state) {
+    size_t name_length;
+    const char* name = luaL_checklstring(state, 1, &name_length);
+    LuaGlobalValue* entry = lua_global_find(name, name_length);
+    if (entry) {
+        if (!lua_mem_manager) {
+            return luaL_error(state, "global variable storage is unavailable");
+        }
+        lua_global_remove(entry);
+    }
+    return 0;
+}
+
+static int lua_require(lua_State* state){
+    const char* req = lua_tolstring(state, 1, nullptr);
+
+    if(req && strcmp(req, "shell") == 0){
+        req__shell(state);
+        return 0;
+    }else{
+        lua_pushstring(state, "invalid kernel module name");
+        return 1;
+    }
+}
+
 struct LuaSource {
     const char* text;
     bool returned;
@@ -154,6 +308,11 @@ void lua_run_luac(char* source_code) {
     lua_setfield(LS,-2,"qms_ver");
     // установка таблицы kernel
     lua_setglobal(LS, "kernel");
+
+    insert_cclosure_func(LS, lua_require, "k_req");
+    insert_cclosure_func(LS, lua_global_set, "glob_set");
+    insert_cclosure_func(LS, lua_global_get, "glob_get");
+    insert_cclosure_func(LS, lua_global_free, "glob_free");
 
     LuaSource source = {source_code, false};
     int status = lua_load(LS, lua_source_reader, &source, "=boot.lua");
