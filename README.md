@@ -70,8 +70,8 @@ Makefile создаёт и форматирует его в FAT16; сущест�
 print("Привет из Lua")
 printi("Эта строка не переводит курсор на новую строку")
 
-k_req("shell")
-shell.exec("help")
+k_req("shell") -- Загружаем shell
+shell.exec("help") -- Выполняем комманду shell 'help'
 
 k_req("easyinput")
 print("Введите текст:")
