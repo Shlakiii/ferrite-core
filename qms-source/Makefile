@@ -25,6 +25,8 @@ LDFLAGS = -m elf_i386 -T linker.ld --gc-sections
 
 DISK_IMG  = disk.img
 DISK_SIZE = 32
+DISK2_IMG = new_ferrite.img
+DISK2_SIZE = 42
 
 MKFSFAT := $(shell \
 	for f in mkfs.fat mkfs.vfat; do \
@@ -48,7 +50,7 @@ OBJS      := $(INIT_OBJ) $(OTHER_OBJS) $(LUAJIT_OBJECTS)
 TARGET  = $(BUILD_DIR)/kernel.bin
 QMS_ISO = qms.iso
 
-.PHONY: all clean run run-disk iso kernel dirs disk disk-mbr disk-populate disk-ls disk-clean clean-all
+.PHONY: all clean run rundisk run2disk run-disk iso kernel dirs disk disk-mbr disk-populate disk-ls disk-clean clean-all FORCE
 
 all: iso run
 
@@ -61,6 +63,13 @@ rundisk: iso disk
 	qemu-system-i386 -m 64M \
 		-cdrom $(QMS_ISO) \
 		-drive file=$(DISK_IMG),format=raw,if=ide,index=0,media=disk \
+		-boot order=d
+
+run2disk: iso $(DISK2_IMG)
+	@echo "Starting QEMU"
+	qemu-system-i386 -m 64M \
+		-cdrom $(QMS_ISO) \
+		-drive file=$(DISK2_IMG),format=raw,if=ide,index=0,media=disk \
 		-boot order=d
 
 disk: $(DISK_IMG)
@@ -78,6 +87,30 @@ $(DISK_IMG):
 	dd if=/dev/zero of=$(DISK_IMG) bs=1M count=$(DISK_SIZE) status=none
 	$(MKFSFAT) -F 16 -S 512 $(DISK_IMG)
 	@echo "ready"
+
+FORCE:
+
+$(DISK2_IMG): FORCE
+	@if [ ! -f "$@" ]; then \
+		echo "Creating $@ ($(DISK2_SIZE) MB, FAT16)"; \
+		if [ -z "$(MKFSFAT)" ]; then \
+			echo "ERROR: mkfs.fat / mkfs.vfat not found. Install dosfstools."; \
+			exit 1; \
+		fi; \
+		dd if=/dev/zero of="$@" bs=1M count=$(DISK2_SIZE) status=none && \
+		$(MKFSFAT) -F 16 -S 512 "$@" || exit 1; \
+		echo "ready"; \
+	else \
+		size=$$(wc -c < "$@"); \
+		target_size=$$(( $(DISK2_SIZE) * 1024 * 1024 )); \
+		if [ "$$size" -lt "$$target_size" ]; then \
+			echo "Expanding $@ to $(DISK2_SIZE) MB"; \
+			truncate -s "$$target_size" "$@" || exit 1; \
+		elif [ "$$size" -gt "$$target_size" ]; then \
+			echo "ERROR: $@ is larger than $(DISK2_SIZE) MB; refusing to truncate it."; \
+			exit 1; \
+		fi; \
+	fi
 
 disk-mbr:
 	@echo "Creating $(DISK_IMG) with MBR + FAT16 partition"

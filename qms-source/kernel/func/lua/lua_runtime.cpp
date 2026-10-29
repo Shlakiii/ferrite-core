@@ -244,10 +244,19 @@ static int lua_require(lua_State* state){
     if(req && strcmp(req, "shell") == 0){
         req__shell(state);
         return 0;
+    }else if (req && strcmp(req, "easyinput") == 0){
+        req__easy_input(state);
+        return 0;
     }else{
         lua_pushstring(state, "invalid kernel module name");
         return 1;
     }
+}
+
+static int lua_printinol(lua_State* state){
+    const char* req = lua_tolstring(state, 1, nullptr);
+    printg("%s" PG_NNL, req);
+    return 0;
 }
 
 struct LuaSource {
@@ -286,6 +295,9 @@ void lua_run_luac(char* source_code) {
     insert_cclosure_func(LS, &lua_kernel_print, "print");
     // функция clear
     insert_cclosure_func(LS, &lua_kernel_func_clear, "clear");
+    // функция printi ввод в одну строку
+    insert_cclosure_func(LS, &lua_printinol, "printi");
+
 
     // таблица serial
     lua_newtable(LS);

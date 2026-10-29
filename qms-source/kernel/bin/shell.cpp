@@ -247,7 +247,57 @@ static void cmd_ls(char* args, bool is_elevated) {
 }
 
 static void cmd_run_lua(char* args, bool is_elevated) {
-    if (!args || !*args) { printg("Usage: run_lua <script>"); return; }
+    if (!args || !*args) { printg("Usage: rl <script> | rl -file <path>"); return; }
+
+    while (*args == ' ' || *args == '\t') args++;
+    if (strncmp(args, "-file", 5) == 0 && (args[5] == '\0' || args[5] == ' ' || args[5] == '\t')) {
+        char* path = args + 5;
+        while (*path == ' ' || *path == '\t') path++;
+        if (!*path) { printg("Usage: rl -file <path>"); return; }
+
+        char* path_end = path;
+        while (*path_end && *path_end != ' ' && *path_end != '\t') path_end++;
+        if (*path_end) {
+            *path_end++ = '\0';
+            while (*path_end == ' ' || *path_end == '\t') path_end++;
+            if (*path_end) { printg("Usage: rl -file <path>"); return; }
+        }
+
+        VFS_Stat stat;
+        VFS_Error err = vfs_stat_path(path, &stat);
+        if (err != VFS_OK) {
+            printg("rl: %s: %s", path, vfs_strerror(err));
+            return;
+        }
+        if (stat.type != VFS_ENT_FILE) {
+            printg("rl: %s: not a file", path);
+            return;
+        }
+        if (stat.size == UINT32_MAX) {
+            printg("rl: %s: file is too large", path);
+            return;
+        }
+
+        uint32_t buffer_size = stat.size + 1;
+        char* source = (char*)kernel_mem_manager->allocate(buffer_size);
+        if (!source) {
+            printg("rl: out of memory");
+            return;
+        }
+
+        uint32_t size = stat.size;
+        err = vfs_read_file(path, source, &size);
+        if (err != VFS_OK) {
+            printg("rl: %s: %s", path, vfs_strerror(err));
+            kernel_mem_manager->free(source, buffer_size);
+            return;
+        }
+        source[size] = '\0';
+        lua_run_luac(source);
+        kernel_mem_manager->free(source, buffer_size);
+        return;
+    }
+
     lua_run_luac(args);
 }
 
@@ -861,14 +911,22 @@ void cmd_mount(char* args, bool is_elevated) {
         return;
     }
 
-    printgc(7, 0, "Mounting %s as FAT32 on %s...", device, mntpoint);
+    printgc(7, 0, "Trying to mount %s as FAT32 on %s...", device, mntpoint);
 
     VFS_Error err = vfs_mount(mntpoint, "fat32", nullptr, 0, disk, 0, nullptr);
+    if (err == VFS_OK) {
+        printgc(10, 0, "Mounted successfully: %s -> %s (FAT32)", device, mntpoint);
+        return;
+    }
 
-    if (err == VFS_OK)
-        printgc(10, 0, "Mounted successfully: %s -> %s", device, mntpoint);
-    else
-        printgc(12, 0, "Mount failed: %s", vfs_strerror(err));
+    printgc(7, 0, "FAT32 mount failed: %s; trying FAT16", vfs_strerror(err));
+    VFS_Error fat16_err = vfs_mount(mntpoint, "fat16", nullptr, 0, disk, 0, nullptr);
+    if (fat16_err != VFS_OK) {
+        printgc(12, 0, "FAT16 mount failed: %s", vfs_strerror(fat16_err));
+        return;
+    }
+
+    printgc(10, 0, "Mounted successfully: %s -> %s (FAT16)", device, mntpoint);
 }
 
 static void cmd_umount(char* args, bool is_elevated) {
