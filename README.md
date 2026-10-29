@@ -1,99 +1,114 @@
-# Ferrite-Core (In Development)
+# Ferrite Core
 
-**Ferrite-Core** — это экспериментальный форк ОС [QMS-Kernel](https://github.com/hecer-hub/qms-kernel), созданный для интеграции среды выполнения **LuaJIT** непосредственно на уровень 32-битного x86 ядра.
+Ferrite Core — экспериментальная 32-битная операционная система для архитектуры
+x86, развиваемая на основе [QMS-Kernel](https://github.com/hecer-hub/qms-kernel).
+Проект объединяет ядро QMS с интегрированной средой выполнения LuaJIT и
+собственными драйверами и файловыми системами.
 
-## Вектор развития (Что планируется изменить):
-1. **Портирование LuaJIT:** Внедрение виртуальной машины Lua в ядро для исполнения скриптов с JIT-компиляцией.
-2. **Скриптовое окружение:** Дополнение стандартного шелла на Lua REPL.
+> **Статус:** проект находится в разработке и предназначен для обучения и
+> экспериментов. Надёжная работа проверяется в QEMU; запуск на реальном
+> оборудовании не гарантируется. Не используйте систему для хранения важных
+> данных.
 
----
+## Возможности
 
-*Ниже приведено описание базовой архитектуры QMS-Kernel, которая используется как фундамент для Ferrite-Core:*
+- 32-битный режим x86 и freestanding-ядро на C и C++.
+- Текстовый терминал на framebuffer с прокруткой и scrollback.
+- Управление памятью ядра и отдельная область памяти Lua.
+- Таблица прерываний и обработка аппаратных прерываний.
+- ATA PIO для обнаружения и работы с дисками.
+- Shell с командами для файлов, пользователей, дисков и запуска приложений.
+- VFS с QFS, FAT16 и FAT32.
+- Встроенный LuaJIT. JIT-компиляция и FFI отключены в конфигурации сборки.
+- PS/2-клавиатура и последовательный порт COM.
+- Запуск приложений формата QEX.
 
-# QMS OS V1.0.0
+## Сборка и запуск
 
-*A simple 32-bit hobby operating system built from scratch.*
+Сборка выполняется из каталога `qms-source/`:
 
----
-
-QMS OS is a lightweight educational operating system written in C and C++ for the i386 architecture. It features its own terminal, basic userspace, and multiple filesystem support.
-
-![Screenshot](assets/images/qms_os_run.png)
-
-> **Important**  
-> QMS OS works reliably **only in QEMU**. Real hardware support is not guaranteed and may lead to instability or data corruption.
-
----
-
-## Features
-
-### Core
-- 32-bit protected mode
-- Framebuffer terminal with scrollback buffer
-- Basic memory management
-- IDT and interrupt handling
-- ATA PIO driver
-- QEX Aplications
-
-### Filesystems
-- QFS (native simple filesystem)
-- FAT16 (read/write)
-- FAT32 (read/write)
-
-### Drivers
-- PS/2 keyboard (standard and laptop layouts)
-- Serial port (COM)
-- LFB mode
-
----
-
-## Building
-
-```
-make
-```
-
-To build only the kernel:
-
-```
+```sh
+cd qms-source
 make kernel
 ```
 
-### Running in QEMU:
+Для создания ISO и запуска системы в QEMU:
 
-```
-make run     # build and run (no disk)
-make rundisk # build and run
-```
-
----
-
-## Project Structure
-
-```
-qms-src/
-├── kernel/          - Kernel source code
-├── assets/          - Documentation and images
-├── disk.img         - Bootable disk image
-└── Makefile         - Build make script
- ...
+```sh
+make
 ```
 
----
+Чтобы собрать ISO отдельно и запустить его позднее:
 
-## Documentation
+```sh
+make iso
+make run
+```
 
-Detailed documentation is available in the [`assets/doc/`](assets/doc/) directory:
+Для запуска с дополнительным виртуальным диском:
 
----
+```sh
+make rundisk
+make run2disk
+```
 
-## Disclaimer
+`rundisk` использует образ `disk.img` размером 32 МиБ. `run2disk` использует
+`new_ferrite.img` размером 42 МиБ. Если образ `new_ferrite.img` отсутствует,
+Makefile создаёт и форматирует его в FAT16; существующий образ не
+переформатируется.
 
-This is an **early experimental release** (Version 1.0.0).  
-The system is developed for learning and hobby purposes.
+Для сборки нужны инструменты для 32-битного freestanding-кода: GCC/G++ с
+поддержкой `-m32`, GNU binutils, NASM и GRUB (`grub-mkrescue`). Для запуска
+нужен QEMU (`qemu-system-i386`); для создания FAT-образов — `mkfs.fat` из
+пакета `dosfstools`.
 
----
+## Использование Lua
 
-## Лицензия и происхождение
-Проект **Ferrite-Core** основан на кодовой базе **QMS-Kernel** (автор: [Roit](https://github.com/hecer-hub)). 
-Оригинальный код распростроняется под лицензией **BSD-3-Clause** Изменения распростроняется под лицензией **Apache 2.0**
+Встроенные Lua-скрипты могут вызывать функции ядра. Например:
+
+```lua
+print("Привет из Lua")
+printi("Эта строка не переводит курсор на новую строку")
+
+k_req("shell")
+shell.exec("help")
+
+k_req("easyinput")
+print("Введите текст:")
+local text = easyinput.input()
+print("Вы ввели: " .. text)
+```
+
+`easyinput.input()` ждёт ввод с клавиатуры до нажатия Enter и возвращает
+введённый текст. Скрипт из VFS можно запустить из shell командой:
+
+```text
+rl -file /путь/к/скрипту.lua
+```
+
+Команда `rl <текст>` передаёт Lua-коду сам текст аргумента. Список доступных
+команд shell можно вывести командой `help`.
+
+## Структура репозитория
+
+```text
+.
+├── LICENSE
+├── README.md
+└── qms-source/
+    ├── Makefile
+    ├── kernel/          исходный код ядра и LuaJIT
+    ├── assets/          изображения и документация
+    ├── isodir/          файлы, включаемые в ISO
+    ├── disk.img         образ для цели rundisk
+    └── new_ferrite.img  образ для цели run2disk
+```
+
+Дополнительные заметки проекта находятся в `qms-source/assets/doc/`.
+
+## Происхождение и лицензия
+
+Ferrite Core основан на QMS-Kernel автора Roit. Условия лицензирования
+производных изменений и исходного кода указаны в [LICENSE](./LICENSE); перед
+распространением производных сборок ознакомьтесь с ними и сохраните
+необходимые уведомления об авторстве.
