@@ -17,7 +17,7 @@ LUAJIT_OBJECT_DIR = $(LUAJIT_BUILD_DIR)/obj
 LUAJIT_STAMP = $(LUAJIT_BUILD_DIR)/.prepared
 LUAJIT_SOURCE_FILES = $(shell find $(KSRC)/luajit/src $(KSRC)/luajit/dynasm -type f ! -name '*.o' ! -name '*.a' ! -name '*.so' ! -name 'luajit' ! -name 'buildvm' ! -name 'minilua') $(KSRC)/luajit/.relver
 LUAJIT_C_SOURCES = $(wildcard $(KSRC)/luajit/src/lj_*.c)
-LUAJIT_OBJECTS = $(patsubst $(KSRC)/luajit/src/%.c,$(LUAJIT_OBJECT_DIR)/%.o,$(LUAJIT_C_SOURCES)) $(LUAJIT_OBJECT_DIR)/lib_aux.o $(LUAJIT_OBJECT_DIR)/lib_base.o $(LUAJIT_OBJECT_DIR)/lib_math.o $(LUAJIT_OBJECT_DIR)/lj_vm.o
+LUAJIT_OBJECTS = $(patsubst $(KSRC)/luajit/src/%.c,$(LUAJIT_OBJECT_DIR)/%.o,$(LUAJIT_C_SOURCES)) $(LUAJIT_OBJECT_DIR)/lib_aux.o $(LUAJIT_OBJECT_DIR)/lib_base.o $(LUAJIT_OBJECT_DIR)/lib_math.o $(LUAJIT_OBJECT_DIR)/lib_string.o $(LUAJIT_OBJECT_DIR)/lib_buffer.o $(LUAJIT_OBJECT_DIR)/lj_vm.o
 LUAJIT_FLAGS = -m32 -ffreestanding -fno-stack-protector -fno-pic -fno-pie -fno-builtin -ffunction-sections -fdata-sections -DLUAJIT_OS=LUAJIT_OS_OTHER -DLUAJIT_DISABLE_JIT -DLUAJIT_DISABLE_FFI -DLUAJIT_DISABLE_PROFILE -DLUAJIT_DISABLE_VMEVENT -DLUAJIT_NO_UNWIND -DLUAJIT_SECURITY_PRNG=0 -DLUAJIT_USE_SYSMALLOC -I$(KSRC)
 LIBGCC = $(shell $(CC) -m32 -print-libgcc-file-name)
 

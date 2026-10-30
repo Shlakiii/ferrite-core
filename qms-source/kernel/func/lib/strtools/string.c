@@ -106,6 +106,19 @@ int memcmp(const void* ptr1, const void* ptr2, size_t num) {
     return 0;
 }
 
+void* memchr(const void* ptr, int value, size_t num) {
+    const unsigned char* bytes = (const unsigned char*)ptr;
+    const unsigned char target = (unsigned char)value;
+
+    for (size_t i = 0; i < num; ++i) {
+        if (bytes[i] == target) {
+            return (void*)(bytes + i);
+        }
+    }
+
+    return (void*)0;
+}
+
 char* strchr(const char* str, int character) {
     char c = (char)character;
     while (*str) {

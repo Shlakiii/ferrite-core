@@ -286,8 +286,9 @@ void lua_run_luac(char* source_code) {
         return;
     }
 
-    luaopen_base(LS);
-    luaopen_math(LS);
+    luaopen_base  (LS);
+    luaopen_math  (LS);
+    luaopen_string(LS);
 
     lua_atpanic(LS, lua_kernel_panic);
 
