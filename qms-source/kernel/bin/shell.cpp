@@ -25,6 +25,16 @@
 
 #include <func/lua/lua_runtime.h>
 
+extern "C" {
+#include <luajit/src/lua.h>
+#include <luajit/src/lauxlib.h>
+#include <luajit/src/lualib.h>
+}
+
+#include <func/lua/lua_easy.h>
+
+#include <func/luasource/commandsuggest_as_h.h>
+
 #include <test/test_prgs.h>
 
 #define HISTORY_SIZE 32
@@ -34,6 +44,9 @@
 
 bool shrboot = false;
 bool shsdown = false;
+
+char* suggested_cmd = nullptr;
+static char suggested_cmd_storage[MAX_CMD_LEN];
 
 static User* find_user(const char* name) {
     for (int i = 0; i < users_count; i++) {
@@ -130,39 +143,69 @@ static void sreboot(char* args, bool is_elevated);
 static void sshutdown(char* args, bool is_elevated);
 static void cmd_nukdir(char* args, bool is_elevated);
 static void cmd_callt(char* args, bool is_elevated);
+static void cmd_accept_suggest(char*, bool);
 
 static ShellCommand commands[] = {
-    {"help",    cmd_help,    "Show this help"},
-    {"whoami",  cmd_whoami,  "Show user info"},
-    {"ls",      cmd_ls,      "List directory"},
-    {"cd",      cmd_cd,      "Change directory"},
-    {"pwd",     cmd_pwd,     "Print working directory"},
-    {"touch",   cmd_touch,   "Create an empty file"},
-    {"setattr", cmd_setattr, "Set file attributes"},
-    {"mkdir",   cmd_mkdir,   "Create directory"},
-    {"rm",      cmd_rm,      "Remove file or directory"},
-    {"nukedir", cmd_nukdir,   "Remove directory recursively (DANGEROUS!)"},
-    {"cp",      cmd_cp,      "Copy file: cp <src> <dst>"},
-    {"mv",      cmd_mv,      "Move/rename file: mv <src> <dst>"},
-    {"cat",     cmd_cat,     "Display file content"},
-    {"run",     cmd_run,     "Run .qex application (-s = as root)"},
-    {"rl",      cmd_run_lua, "Run Lua script: rl <script>"},
-    {"su",      cmd_su,      "Switch to root user"},
-    {"lsblk",   cmd_lsblk,   "List block devices (ATA drives)"},
-    {"mount",   cmd_mount,   "Mount filesystem: mount <disk> <mountpoint>"},
-    {"umount",  cmd_umount,  "Unmount filesystem: umount <mountpoint>"},
-    {"dd",      cmd_dd,      "Disk dump: dd if=<disk> of=<file> bs=512 count=N skip=N"},
-    {"format",  cmd_format,  "Format partition: format <disk> [fat16|fat32]  (DANGEROUS!)"},
-    {"moudump", cmd_moudump, "Show mount list"},
-    {"clear",   cmd_clear,   "Clear screen"},
-    {"mem",     cmd_mem,     "Memory usage"},
-    {"sinfo",   cmd_sinfo,   "System information"},
-    {"about",   cmd_about,   "About QMS OS"},
-    {"callt",   cmd_callt,   "Call test program <test_code>"},
-    {"reboot",  sreboot,     "Reboot system"},
-    {"shutdown",sshutdown,   "Shutdown system"},
+    {"help",    cmd_help,           "Show this help"},
+    {"whoami",  cmd_whoami,         "Show user info"},
+    {"ls",      cmd_ls,             "List directory"},
+    {"cd",      cmd_cd,             "Change directory"},
+    {"pwd",     cmd_pwd,            "Print working directory"},
+    {"touch",   cmd_touch,          "Create an empty file"},
+    {"setattr", cmd_setattr,        "Set file attributes"},
+    {"mkdir",   cmd_mkdir,          "Create directory"},
+    {"rm",      cmd_rm,             "Remove file or directory"},
+    {"nukedir", cmd_nukdir,         "Remove directory recursively (DANGEROUS!)"},
+    {"cp",      cmd_cp,             "Copy file: cp <src> <dst>"},
+    {"mv",      cmd_mv,             "Move/rename file: mv <src> <dst>"},
+    {"cat",     cmd_cat,            "Display file content"},
+    {"run",     cmd_run,            "Run .qex application (-s = as root)"},
+    {"rl",      cmd_run_lua,        "Run Lua script: rl <script>"},
+    {"su",      cmd_su,             "Switch to root user"},
+    {"yes",     cmd_accept_suggest, "Execute last suggested command"},
+    {"lsblk",   cmd_lsblk,          "List block devices (ATA drives)"},
+    {"mount",   cmd_mount,          "Mount filesystem: mount <disk> <mountpoint>"},
+    {"umount",  cmd_umount,         "Unmount filesystem: umount <mountpoint>"},
+    {"dd",      cmd_dd,             "Disk dump: dd if=<disk> of=<file> bs=512 count=N skip=N"},
+    {"format",  cmd_format,         "Format partition: format <disk> [fat16|fat32]  (DANGEROUS!)"},
+    {"moudump", cmd_moudump,        "Show mount list"},
+    {"clear",   cmd_clear,          "Clear screen"},
+    {"mem",     cmd_mem,            "Memory usage"},
+    {"sinfo",   cmd_sinfo,          "System information"},
+    {"about",   cmd_about,          "About QMS OS"},
+    {"callt",   cmd_callt,          "Call test program <test_code>"},
+    {"reboot",  sreboot,            "Reboot system"},
+    {"shutdown",sshutdown,          "Shutdown system"},
     {nullptr, nullptr, nullptr}
 };
+
+static int __lua_result(lua_State* s){ // принимает работу lua и предлагает ввод
+    const char* result = lua_tolstring(s, 1, nullptr);
+
+    if (result && *result) {
+        size_t length = 0;
+        while (result[length] && length < MAX_CMD_LEN - 1) {
+            suggested_cmd_storage[length] = result[length];
+            length++;
+        }
+        if (result[length]) {
+            suggested_cmd = nullptr;
+            printg("lua: suggestion is too long");
+            return 0;
+        }
+
+        suggested_cmd_storage[length] = '\0';
+        suggested_cmd = suggested_cmd_storage;
+        printg(""); // нихуя new line
+        printg("do you mean: %s ?", result);
+        printg("type yes to execute");
+    } else {
+        suggested_cmd = nullptr;
+        printg("lua: no suggestion available");
+    }
+
+    return 0;
+}
 
 void execute_command(char* line, bool is_elevated) {
     vfs_set_current_user(is_elevated);
@@ -183,6 +226,22 @@ void execute_command(char* line, bool is_elevated) {
     }
     vfs_set_current_user(is_root);
     printgc(12, 0, "Unknown command: %s", line);
+
+    suggested_cmd = nullptr;
+    lua_State* LS = lua_create_state();
+    if (!LS) {
+        printg("lua: failed to create suggestion state");
+        return;
+    }
+
+    lua_pushstring(LS, line);
+    lua_setglobal(LS, "cmdline");
+
+    insert_cclosure_func(LS, __lua_result, "retsuggest");
+
+    lua_run_luac_manual(LS, __cmd__sugg__source);
+
+    lua_close(LS);
 }
 
 static void cmd_help(char* args, bool is_elevated) {
@@ -194,6 +253,22 @@ static void cmd_help(char* args, bool is_elevated) {
 
 static void cmd_moudump(char* args, bool is_elevated) {
     vfs_dump_mounts();
+}
+
+static void cmd_accept_suggest(char* args, bool is_elevated) {
+    if (suggested_cmd) {
+        char command[MAX_CMD_LEN];
+        size_t length = 0;
+        while (suggested_cmd[length] && length < MAX_CMD_LEN - 1) {
+            command[length] = suggested_cmd[length];
+            length++;
+        }
+        command[length] = '\0';
+        suggested_cmd = nullptr;
+        execute_command(command, is_elevated);
+    } else {
+        printg("No suggested command to execute.");
+    }
 }
 
 static void cmd_whoami(char* args, bool is_elevated) {

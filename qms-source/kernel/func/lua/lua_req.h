@@ -9,7 +9,8 @@ extern "C" {
 }
 #endif
 
-void req__shell(lua_State* S);
+void req__shell     (lua_State* S);
 void req__easy_input(lua_State* S);
+void req__vfs       (lua_State* s);
 
 #endif //LUA_REQ_H

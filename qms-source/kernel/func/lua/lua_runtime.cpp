@@ -247,6 +247,9 @@ static int lua_require(lua_State* state){
     }else if (req && strcmp(req, "easyinput") == 0){
         req__easy_input(state);
         return 0;
+    }else if (req && strcmp(req, "vfs") == 0){
+        req__vfs(state);
+        return 0;
     }else{
         lua_pushstring(state, "invalid kernel module name");
         return 1;
@@ -279,61 +282,77 @@ static const char* lua_source_reader(lua_State*, void* data, size_t* size) {
     return text;
 }
 
-void lua_run_luac(char* source_code) {
-    lua_State* LS = lua_newstate(lua_kernel_alloc, lua_mem_manager);
-    if (!LS) {
-        printg("Lua: failed to create state");
-        return;
-    }
-
-    luaopen_base  (LS);
-    luaopen_math  (LS);
+static void lua_configure_state(lua_State* LS) {
+    luaopen_base(LS);
+    lua_pop(LS, 1);
+    luaopen_math(LS);
+    lua_pop(LS, 1);
     luaopen_string(LS);
+    lua_pop(LS, 1);
 
     lua_atpanic(LS, lua_kernel_panic);
 
-    // функция print
     insert_cclosure_func(LS, &lua_kernel_print, "print");
-    // функция clear
     insert_cclosure_func(LS, &lua_kernel_func_clear, "clear");
-    // функция printi ввод в одну строку
     insert_cclosure_func(LS, &lua_printinol, "printi");
 
-
-    // таблица serial
     lua_newtable(LS);
-    // функция serial.println
     lua_pushcfunction(LS, serial_println_serial);
     lua_setfield(LS, -2, "println");
-    // функция serial.newline_m
     lua_pushcfunction(LS, lua_serial_new_line_manual);
     lua_setfield(LS, -2, "newline_m");
-    // устaновка таблицы serial
     lua_setglobal(LS, "serial");
 
-    // таблица kernel
     lua_newtable(LS);
-    // функция kernel.version
     lua_pushcfunction(LS, lua_kernel_ver_get);
-    lua_setfield(LS,-2,"version");
-    // функция kernel.qms_ver
+    lua_setfield(LS, -2, "version");
     lua_pushcfunction(LS, lua_qms_kernel_ver_get);
-    lua_setfield(LS,-2,"qms_ver");
-    // установка таблицы kernel
+    lua_setfield(LS, -2, "qms_ver");
     lua_setglobal(LS, "kernel");
 
     insert_cclosure_func(LS, lua_require, "k_req");
     insert_cclosure_func(LS, lua_global_set, "glob_set");
     insert_cclosure_func(LS, lua_global_get, "glob_get");
     insert_cclosure_func(LS, lua_global_free, "glob_free");
+}
+
+lua_State* lua_create_state() {
+    lua_State* LS = lua_newstate(lua_kernel_alloc, lua_mem_manager);
+    if (!LS) {
+        printg("Lua: failed to create state");
+        return nullptr;
+    }
+
+    return LS;
+}
+
+void lua_run_luac_manual(lua_State* LS, const char* source_code) {
+    if (!LS) {
+        printg("Lua: cannot run script without a state");
+        return;
+    }
+    if (!source_code) {
+        printg("Lua: cannot run a null script");
+        return;
+    }
+
+    lua_configure_state(LS);
 
     LuaSource source = {source_code, false};
+    int stack_top = lua_gettop(LS);
     int status = lua_load(LS, lua_source_reader, &source, "=boot.lua");
     if (status == 0) status = lua_pcall(LS, 0, 0, 0);
     if (status != 0) {
         const char* message = lua_tolstring(LS, -1, nullptr);
         printg("Lua error: %s", message ? message : "unknown error");
+        lua_settop(LS, stack_top);
     }
+}
 
+void lua_run_luac(char* source_code) {
+    lua_State* LS = lua_create_state();
+    if (!LS) return;
+
+    lua_run_luac_manual(LS, source_code);
     lua_close(LS);
 }

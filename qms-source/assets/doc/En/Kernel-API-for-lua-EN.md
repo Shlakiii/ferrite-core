@@ -30,6 +30,12 @@ Each call to `lua_run_luac` creates a new Lua state. Ordinary Lua variables and
 loaded modules do not persist across runs. The `glob_*` API provides storage for
 small values that need to survive separate Lua runs.
 
+For direct state management, use `lua_create_state()` to create a state and
+`lua_run_luac_manual(state, script)` to execute a script in it. The manual
+runner registers the kernel functions before execution and does not close the
+state, so it can be reused. The caller must call `lua_close(state)` when it is
+no longer needed.
+
 ## Kernel API
 
 Unless noted otherwise, the following functions are registered globally when a
