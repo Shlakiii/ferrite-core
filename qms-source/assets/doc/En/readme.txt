@@ -244,6 +244,10 @@ Supported SDK versions: 3, 4.
   log(level, fmt, ...)            - log output
   printg(fmt, ...)                - text output
   printgc(t, b, fmt, ...)         - colored text output (fg, bg)
+  advancedio.colors.<color>()    - get a color code for printgc:
+    black=0, blue=1, green=2, cyan=3, red=4, magenta=5, brown=6,
+    light_gray=7, dark_gray=8, bright_blue=9, bright_green=10,
+    bright_cyan=11, bright_red=12, bright_magenta=13, yellow=14, white=15
   clear_screen()                  - clear screen
   goto_xy(x, y)                   - move cursor
   tscreen_h(), tscreen_w()        - screen dimensions

@@ -50,6 +50,9 @@ OBJS      := $(INIT_OBJ) $(OTHER_OBJS) $(LUAJIT_OBJECTS)
 TARGET  = $(BUILD_DIR)/kernel.bin
 QMS_ISO = qms.iso
 
+LUASOURCE_DIR = $(KSRC)/func/luasource
+LUASOURCE_HEADERS = $(LUASOURCE_DIR)/commandsuggest_as_h.h $(LUASOURCE_DIR)/ferr_s_source.h
+
 .PHONY: all clean run rundisk run2disk run-disk iso kernel dirs disk disk-mbr disk-populate disk-ls disk-clean clean-all FORCE
 
 all: iso run
@@ -182,10 +185,26 @@ $(BUILD_DIR)/%.o: $(KSRC)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $< -o $@
 
+$(BUILD_DIR)/bin/shell.o: $(LUASOURCE_HEADERS)
+
 $(BUILD_DIR)/%.o: $(KSRC)/%.c
 	@echo "Compiling C: $< "
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $< -o $@
+
+$(LUASOURCE_DIR)/commandsuggest_as_h.h: FORCE $(LUASOURCE_DIR)/commandsuggest.lua
+	@tmp=$@.tmp; \
+	{ printf '%s\n' '#ifndef COMMANDSUGGEST_AS_H' '#define COMMANDSUGGEST_AS_H' '' 'static char __cmd__sugg__source[] = R"LUA('; \
+	  cat $(LUASOURCE_DIR)/commandsuggest.lua; \
+	  printf '%s\n' ')LUA";' '' '#endif'; \
+	} > "$$tmp" && mv "$$tmp" $@ || { rm -f "$$tmp"; exit 1; }
+
+$(LUASOURCE_DIR)/ferr_s_source.h: FORCE $(LUASOURCE_DIR)/ferr_s.lua
+	@tmp=$@.tmp; \
+	{ printf '%s\n' '#ifndef FERR_S_SOURCE_H' '#define FERR_S_SOURCE_H' '' 'static char __ferr_sh__source[] = R"LUA('; \
+	  cat $(LUASOURCE_DIR)/ferr_s.lua; \
+	  printf '%s\n' ')LUA";' '' '#endif // FERR_S_SOURCE_H'; \
+	} > "$$tmp" && mv "$$tmp" $@ || { rm -f "$$tmp"; exit 1; }
 
 $(BUILD_DIR)/func/io/printg.o: $(KSRC)/func/io/printg.h
 

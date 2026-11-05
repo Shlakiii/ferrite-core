@@ -203,6 +203,107 @@ static int lua_vfs_write_file(lua_State* s){
     return 1;
 }
 
+static int lua_vfs_get_cwd(lua_State* s){
+    const char* cwd = vfs_getcwd();
+    lua_pushstring(s, cwd);
+    return 1;
+}
+
+static int lua_advancedio_log_error(lua_State* s){
+    size_t msg_length;
+    const char* msg = luaL_checklstring(s, 1, &msg_length);
+    if (msg_length == 0 || msg_length >= 1024)
+        return luaL_error(s, "advancedio.log_error: invalid message length");
+    for (size_t i = 0; i < msg_length; ++i) {
+        if (msg[i] == '\0')
+            return luaL_error(s, "advancedio.log_error: message contains a null byte");
+    }
+
+    log(1, msg);
+    return 0;
+}
+
+static int lua_advancedio_log_warn(lua_State* s){
+    size_t msg_length;
+    const char* msg = luaL_checklstring(s, 1, &msg_length);
+    if (msg_length == 0 || msg_length >= 1024)
+        return luaL_error(s, "advancedio.log_warn: invalid message length");
+    for (size_t i = 0; i < msg_length; ++i) {
+        if (msg[i] == '\0')
+            return luaL_error(s, "advancedio.log_warn: message contains a null byte");
+    }
+
+    log(2, msg);
+    return 0;
+}
+
+static int lua_advancedio_log_info(lua_State* s){
+    size_t msg_length;
+    const char* msg = luaL_checklstring(s, 1, &msg_length);
+    if (msg_length == 0 || msg_length >= 1024)
+        return luaL_error(s, "advancedio.log_info: invalid message length");
+    for (size_t i = 0; i < msg_length; ++i) {
+        if (msg[i] == '\0')
+            return luaL_error(s, "advancedio.log_info: message contains a null byte");
+    }
+
+    log(3, msg);
+    return 0;
+}
+
+static int lua_advancedio_log_debug(lua_State* s){
+    size_t msg_length;
+    const char* msg = luaL_checklstring(s, 1, &msg_length);
+    if (msg_length == 0 || msg_length >= 1024)
+        return luaL_error(s, "advancedio.log_debug: invalid message length");
+    for (size_t i = 0; i < msg_length; ++i) {
+        if (msg[i] == '\0')
+            return luaL_error(s, "advancedio.log_debug: message contains a null byte");
+    }
+
+    log(4, msg);
+    return 0;
+}
+
+static int lua_advancedio_printgc(lua_State* s){
+    size_t msg_length;
+    const char* msg = luaL_checklstring(s, 1, &msg_length);
+    int t = static_cast<int>(luaL_checkinteger(s, 2));
+    int b = static_cast<int>(luaL_checkinteger(s, 3));
+
+    if (msg_length == 0 || msg_length >= 1024)
+        return luaL_error(s, "advancedio.printgc: invalid message length");
+    for (size_t i = 0; i < msg_length; ++i) {
+        if (msg[i] == '\0')
+            return luaL_error(s, "advancedio.printgc: message contains a null byte");
+    }
+
+    bool no_newline = static_cast<uint8_t>(msg[msg_length - 1]) == 0x01;
+    if (no_newline) --msg_length;
+
+    char printable_msg[1024];
+    for (size_t i = 0; i < msg_length; ++i)
+        printable_msg[i] = msg[i];
+    printable_msg[msg_length] = '\0';
+
+    if (no_newline)
+        printgc(t, b, "%s" PG_NNL, printable_msg);
+    else
+        printgc(t, b, "%s", printable_msg);
+    return 0;
+}
+
+static int lua_advancedio_color_value(lua_State* s){
+    lua_pushinteger(s, lua_tointeger(s, lua_upvalueindex(1)));
+    return 1;
+}
+
+static void lua_advancedio_add_color(lua_State* s, const char* name, int value){
+    lua_pushinteger(s, value);
+    lua_pushcclosure(s, lua_advancedio_color_value, 1);
+    lua_setfield(s, -2, name);
+}
+
 static int ____callnull(lua_State*){return 0;} // служебная функция нихуя неделанья
 
 // ---------
@@ -251,5 +352,48 @@ void req__vfs(lua_State* s){
     lua_pushcfunction(s, lua_vfs_write_file);
     lua_setfield(s, -2, "writefile");
 
+    lua_pushcfunction(s, lua_vfs_get_cwd);
+    lua_setfield(s, -2, "getcwd");
+
     lua_setglobal(s, "vfs");
+}
+
+void req__advancedio(lua_State* s){
+    lua_newtable(s);
+
+    lua_pushcfunction(s, lua_advancedio_log_error);
+    lua_setfield(s, -2, "log_error");
+
+    lua_pushcfunction(s, lua_advancedio_log_warn);
+    lua_setfield(s, -2, "log_warn");
+
+    lua_pushcfunction(s, lua_advancedio_log_info);
+    lua_setfield(s, -2, "log_info");
+
+    lua_pushcfunction(s, lua_advancedio_log_debug);
+    lua_setfield(s, -2, "log_debug");
+
+    lua_pushcfunction(s, lua_advancedio_printgc);
+    lua_setfield(s, -2, "printgc");
+
+    lua_newtable(s);
+    lua_advancedio_add_color(s, "black", 0);
+    lua_advancedio_add_color(s, "blue", 1);
+    lua_advancedio_add_color(s, "green", 2);
+    lua_advancedio_add_color(s, "cyan", 3);
+    lua_advancedio_add_color(s, "red", 4);
+    lua_advancedio_add_color(s, "magenta", 5);
+    lua_advancedio_add_color(s, "brown", 6);
+    lua_advancedio_add_color(s, "light_gray", 7);
+    lua_advancedio_add_color(s, "dark_gray", 8);
+    lua_advancedio_add_color(s, "bright_blue", 9);
+    lua_advancedio_add_color(s, "bright_green", 10);
+    lua_advancedio_add_color(s, "bright_cyan", 11);
+    lua_advancedio_add_color(s, "bright_red", 12);
+    lua_advancedio_add_color(s, "bright_magenta", 13);
+    lua_advancedio_add_color(s, "yellow", 14);
+    lua_advancedio_add_color(s, "white", 15);
+    lua_setfield(s, -2, "colors");
+
+    lua_setglobal(s, "advancedio");
 }

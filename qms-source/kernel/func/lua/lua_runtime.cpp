@@ -250,6 +250,9 @@ static int lua_require(lua_State* state){
     }else if (req && strcmp(req, "vfs") == 0){
         req__vfs(state);
         return 0;
+    }else if (req && strcmp(req, "advancedio") == 0){
+        req__advancedio(state);
+        return 0;
     }else{
         lua_pushstring(state, "invalid kernel module name");
         return 1;

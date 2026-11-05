@@ -98,4 +98,4 @@ if best_command and not ambiguous then
 end
 )LUA";
 
-#endif // COMMANDSUGGEST_AS_H
+#endif

@@ -34,6 +34,7 @@ extern "C" {
 #include <func/lua/lua_easy.h>
 
 #include <func/luasource/commandsuggest_as_h.h>
+#include <func/luasource/ferr_s_source.h>
 
 #include <test/test_prgs.h>
 
@@ -142,6 +143,7 @@ static void path_join(char* out, size_t out_size, const char* dir, const char* n
 static void sreboot(char* args, bool is_elevated);
 static void sshutdown(char* args, bool is_elevated);
 static void cmd_nukdir(char* args, bool is_elevated);
+static void cmd_run_ferrite_shell(char* args, bool is_elevated);
 static void cmd_callt(char* args, bool is_elevated);
 static void cmd_accept_suggest(char*, bool);
 
@@ -171,6 +173,7 @@ static ShellCommand commands[] = {
     {"moudump", cmd_moudump,        "Show mount list"},
     {"clear",   cmd_clear,          "Clear screen"},
     {"mem",     cmd_mem,            "Memory usage"},
+    {"run_ferrite_shell", cmd_run_ferrite_shell, "Run Ferrite shell"},
     {"sinfo",   cmd_sinfo,          "System information"},
     {"about",   cmd_about,          "About QMS OS"},
     {"callt",   cmd_callt,          "Call test program <test_code>"},
@@ -269,6 +272,11 @@ static void cmd_accept_suggest(char* args, bool is_elevated) {
     } else {
         printg("No suggested command to execute.");
     }
+}
+
+static void cmd_run_ferrite_shell(char* args, bool is_elevated) {
+    printg("Running Ferrite shell...");
+    lua_run_luac(__ferr_sh__source);
 }
 
 static void cmd_whoami(char* args, bool is_elevated) {
@@ -539,6 +547,8 @@ static void cmd_callt(char* args, bool is_elevated) {
         printg("Invalid test code");
     }
 }
+
+
 
 static bool mv_file(const char* src, const char* real_dst) {
     VFS_Error err;

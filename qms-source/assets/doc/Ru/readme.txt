@@ -242,6 +242,10 @@ QMS OS поддерживает запуск пользовательских QE
   log(level, fmt, ...)            - вывод в лог
   printg(fmt, ...)                - вывод текста
   printgc(t, b, fmt, ...)         - вывод текста с цветом (fg, bg)
+  advancedio.colors.<color>()    - получить код цвета для printgc:
+    black=0, blue=1, green=2, cyan=3, red=4, magenta=5, brown=6,
+    light_gray=7, dark_gray=8, bright_blue=9, bright_green=10,
+    bright_cyan=11, bright_red=12, bright_magenta=13, yellow=14, white=15
   clear_screen()                  - очистить экран
   goto_xy(x, y)                   - переместить курсор
   tscreen_h(), tscreen_w()        - размеры экрана
